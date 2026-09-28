@@ -7,11 +7,25 @@
 @theme {
   --text-xs: 0.875rem;
   --text-sm: 1rem;
+
+  /* INSSNAPP brand palette — sampled from the official puzzle-piece logo. */
+  --color-brand-navy: #0a0a2e;
+  --color-brand-navy-light: #1b1b52;
+  --color-brand-violet: #7b2ff7;
+  --color-brand-violet-light: #9d4edd;
+  --color-brand-white: #ffffff;
 }
 
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  /* INSSNAPP brand palette (CSS variables mirror the @theme tokens). */
+  --brand-navy: #0a0a2e;
+  --brand-navy-light: #1b1b52;
+  --brand-violet: #7b2ff7;
+  --brand-violet-light: #9d4edd;
+  --brand-white: #ffffff;
+  --brand-gradient: linear-gradient(135deg, #7b2ff7 0%, #9d4edd 100%);
 }
 
 body {

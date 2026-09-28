@@ -6,6 +6,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Switch,
@@ -32,6 +33,11 @@ export const theme = {
   warn: "#b45309",
   warnBg: "#fffbeb",
   radius: 12,
+  /* INSSNAPP brand palette — sampled from the official puzzle-piece logo. */
+  brandNavy: "#0a0a2e",
+  brandViolet: "#7b2ff7",
+  brandVioletLight: "#9d4edd",
+  brandWhite: "#ffffff",
 };
 
 const STATE_COLORS: Record<ShowingState, { bg: string; fg: string }> = {
@@ -47,6 +53,33 @@ const STATE_COLORS: Record<ShowingState, { bg: string; fg: string }> = {
 
 export function Screen({ children }: { children: React.ReactNode }) {
   return <View style={styles.screen}>{children}</View>;
+}
+
+/**
+ * Official INSSNAPP puzzle-piece logo (final artwork — do not alter).
+ * The lockup is designed for dark backgrounds, so it renders on a
+ * deep-navy tile. Accessibility label keeps it meaningful to screen readers.
+ */
+export function LogoMark({ size = 40 }: { size?: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 4,
+        backgroundColor: theme.brandNavy,
+        overflow: "hidden",
+      }}
+      accessibilityRole="image"
+      accessibilityLabel="INSSNAPP"
+    >
+      <Image
+        source={require("../assets/inssnapp-logo.png")}
+        style={{ width: size, height: size, resizeMode: "contain" }}
+        accessibilityLabel="INSSNAPP"
+      />
+    </View>
+  );
 }
 
 export function Card({ children }: { children: React.ReactNode }) {
@@ -177,7 +210,7 @@ export function ToggleRow({
         value={value}
         onValueChange={onChange}
         disabled={disabled}
-        trackColor={{ false: "#cbd5e1", true: theme.teal }}
+        trackColor={{ false: "#cbd5e1", true: theme.brandViolet }}
         thumbColor="#ffffff"
       />
     </View>
@@ -187,7 +220,7 @@ export function ToggleRow({
 export function LoadingView({ message = "Loading…" }: { message?: string }) {
   return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" color={theme.teal} />
+      <ActivityIndicator size="large" color={theme.brandViolet} />
       <Text style={[styles.muted, { marginTop: 12 }]}>{message}</Text>
     </View>
   );
@@ -271,7 +304,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  buttonPrimary: { backgroundColor: theme.teal },
+  buttonPrimary: { backgroundColor: theme.brandViolet },
   buttonSecondary: { backgroundColor: "#e2e8f0" },
   buttonDanger: { backgroundColor: theme.dangerBg, borderWidth: 1, borderColor: theme.danger },
   buttonGhost: { backgroundColor: "transparent" },
@@ -279,7 +312,7 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.85 },
   buttonText: { fontSize: 16, fontWeight: "700", color: theme.ink },
   buttonTextPrimary: { color: "#ffffff" },
-  buttonTextGhost: { color: theme.teal },
+  buttonTextGhost: { color: theme.brandViolet },
   field: { marginBottom: 12 },
   fieldLabel: { fontSize: 14, fontWeight: "600", color: theme.ink, marginBottom: 6 },
   input: {

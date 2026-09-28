@@ -39,7 +39,7 @@ export function SiteFooter() {
             To discuss a pilot or partnership, reach the INSSNAPP team at{" "}
             <a
               href="mailto:info@inssnapp.com"
-              className="font-medium text-indigo-600 hover:text-indigo-800"
+              className="font-medium text-brand-violet hover:text-brand-violet-light"
             >
               info@inssnapp.com
             </a>

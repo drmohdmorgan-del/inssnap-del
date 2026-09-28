@@ -44,7 +44,7 @@ export function ManagementDesktop({ user }: { user: User }) {
             onClick={() => setTab(t.id)}
             className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
               tab === t.id
-                ? "border-indigo-600 text-indigo-700"
+                ? "border-brand-violet text-brand-violet"
                 : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
             }`}
           >

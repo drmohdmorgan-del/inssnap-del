@@ -15,7 +15,7 @@ export function SectionHeading({
   return (
     <div className="mx-auto max-w-3xl text-center">
       {eyebrow && (
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600">
+        <p className="text-xs font-semibold uppercase tracking-widest text-brand-violet">
           {eyebrow}
         </p>
       )}
@@ -36,19 +36,19 @@ export function CtaBand({
 }) {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <div className="rounded-3xl bg-indigo-600 px-6 py-12 text-center sm:px-12">
+      <div className="rounded-3xl bg-gradient-to-br from-brand-navy via-brand-navy-light to-brand-violet px-6 py-12 text-center sm:px-12">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-indigo-100">{body}</p>
+        <p className="mx-auto mt-3 max-w-2xl text-white/80">{body}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <a
             href="/login"
-            className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-indigo-700 shadow transition hover:bg-indigo-50"
+            className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand-violet shadow transition hover:bg-brand-violet/10"
           >
             Sign in
           </a>
           <a
             href="mailto:info@inssnapp.com"
-            className="rounded-xl border border-indigo-300 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            className="rounded-xl border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
           >
             Contact us
           </a>
@@ -79,10 +79,10 @@ export function CheckList({ items }: { items: string[] }) {
       {items.map((item) => (
         <li key={item} className="flex gap-2 text-sm text-slate-600">
           <svg viewBox="0 0 20 20" className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true">
-            <circle cx="10" cy="10" r="9" fill="#eef2ff" />
+            <circle cx="10" cy="10" r="9" fill="#ede4fd" />
             <path
               d="M6.5 10.5l2.5 2.5 4.5-5"
-              stroke="#4f46e5"
+              stroke="#7b2ff7"
               strokeWidth="2"
               fill="none"
               strokeLinecap="round"

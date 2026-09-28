@@ -69,7 +69,13 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200 p-4">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">INSSNAPP</h1>
+          <img
+            src="/brand/inssnapp-logo.png"
+            alt="INSSNAPP"
+            className="mx-auto h-24 w-24 rounded-2xl bg-brand-navy object-contain"
+            draggable={false}
+          />
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">INSSNAPP</h1>
           <p className="mt-1 text-sm text-slate-500">Resident-Powered Leasing Infrastructure</p>
         </div>
 
@@ -85,7 +91,7 @@ export default function LoginPage() {
                 autoComplete="one-time-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm tracking-widest focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm tracking-widest focus:border-brand-violet focus:outline-none focus:ring-2 focus:ring-brand-violet/30"
                 placeholder="6-digit code"
                 required
               />
@@ -103,7 +109,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-violet px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-violet-light disabled:opacity-50"
             >
               {loading ? "Verifying…" : "Verify"}
             </button>
@@ -127,7 +133,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-violet focus:outline-none focus:ring-2 focus:ring-brand-violet/30"
                 placeholder="you@company.com"
                 required
               />
@@ -138,7 +144,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-violet focus:outline-none focus:ring-2 focus:ring-brand-violet/30"
                 placeholder="••••••••"
                 required
               />
@@ -153,7 +159,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-violet px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-violet-light disabled:opacity-50"
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>
@@ -170,7 +176,7 @@ export default function LoginPage() {
                 key={a.email}
                 type="button"
                 onClick={() => setEmail(a.email)}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-indigo-300 hover:text-indigo-700"
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-brand-violet/40 hover:text-brand-violet"
               >
                 {a.label}
               </button>

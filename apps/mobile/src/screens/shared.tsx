@@ -14,6 +14,7 @@ import {
   Card,
   ErrorView,
   LoadingView,
+  LogoMark,
   Muted,
   StarPicker,
   StateBadge,
@@ -95,11 +96,14 @@ export function Header({
       <View
         style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
       >
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: theme.ink }}>{title}</Text>
-          <Muted>
-            {user.fullName} · {user.email}
-          </Muted>
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+          <LogoMark size={40} />
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            <Text style={{ fontSize: 22, fontWeight: "700", color: theme.ink }}>{title}</Text>
+            <Muted>
+              {user.fullName} · {user.email}
+            </Muted>
+          </View>
         </View>
         <Button label="Sign out" kind="ghost" onPress={onSignOut} />
       </View>

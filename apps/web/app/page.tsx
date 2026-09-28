@@ -6,7 +6,8 @@
  */
 
 import type { Metadata } from "next";
-import { SiteHeader, TileMark } from "../components/marketing/SiteHeader";
+import { SiteHeader } from "../components/marketing/SiteHeader";
+import { BrandMark } from "../components/brand/BrandMark";
 import { SiteFooter } from "../components/marketing/SiteFooter";
 import { Card, CheckList, CtaBand, SectionHeading } from "../components/marketing/marketing-ui";
 import {
@@ -30,10 +31,10 @@ export default function HomePage() {
 
       <main>
         {/* Hero */}
-        <section className="bg-gradient-to-br from-indigo-50 via-white to-slate-100">
+        <section className="bg-gradient-to-br from-brand-navy/5 via-white to-brand-violet/10">
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+              <p className="inline-flex items-center gap-2 rounded-full border border-brand-violet/30 bg-white px-3 py-1 text-xs font-semibold text-brand-violet">
                 In development — preparing for pilot
               </p>
               <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
@@ -48,7 +49,7 @@ export default function HomePage() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href="/login"
-                  className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-indigo-700"
+                  className="rounded-xl bg-gradient-to-r from-brand-violet to-brand-violet-light px-6 py-3 text-sm font-semibold text-white shadow transition hover:opacity-90"
                 >
                   Sign in
                 </a>
@@ -63,7 +64,7 @@ export default function HomePage() {
             <div className="hidden lg:block">
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
                 <div className="mb-4 flex items-center gap-3">
-                  <TileMark className="h-10 w-10" />
+                  <BrandMark className="h-10 w-10" />
                   <p className="text-sm font-semibold text-slate-900">
                     End-to-end workflow
                   </p>
@@ -75,7 +76,7 @@ export default function HomePage() {
                 <ol className="mt-5 space-y-3">
                   {WORKFLOW_PREVIEW.map((step, i) => (
                     <li key={step.title} className="flex items-start gap-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-xs font-bold text-white">
                         {i + 1}
                       </span>
                       <div>
@@ -87,7 +88,7 @@ export default function HomePage() {
                 </ol>
                 <a
                   href="/how-it-works"
-                  className="mt-5 inline-block text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+                  className="mt-5 inline-block text-sm font-semibold text-brand-violet hover:text-brand-violet-light"
                 >
                   View the full workflow →
                 </a>
@@ -112,7 +113,7 @@ export default function HomePage() {
             ))}
           </div>
           <p className="mt-6 text-center">
-            <a href="/roles" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+            <a href="/roles" className="text-sm font-semibold text-brand-violet hover:text-brand-violet-light">
               Explore each role experience →
             </a>
           </p>
@@ -169,7 +170,7 @@ export default function HomePage() {
             </Card>
           </div>
           <p className="mt-6 text-center">
-            <a href="/services" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+            <a href="/services" className="text-sm font-semibold text-brand-violet hover:text-brand-violet-light">
               See all services →
             </a>
           </p>

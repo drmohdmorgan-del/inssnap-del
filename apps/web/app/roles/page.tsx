@@ -30,7 +30,7 @@ export default function RolesPage() {
             {ROLE_CARDS.map((role) => (
               <Card key={role.role} title={role.role}>
                 <p className="mb-1">
-                  <span className="inline-block rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                  <span className="inline-block rounded-full bg-brand-violet/10 px-2.5 py-0.5 text-xs font-semibold text-brand-violet">
                     {role.platform}
                   </span>
                 </p>

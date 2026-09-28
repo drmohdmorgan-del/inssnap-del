@@ -69,7 +69,7 @@ export function OrgsOverview() {
                 </div>
                 <div>
                   <dt className="text-[11px] text-slate-500">Active</dt>
-                  <dd className="text-base font-bold text-indigo-700">{o.counts.activeShowings}</dd>
+                  <dd className="text-base font-bold text-brand-violet">{o.counts.activeShowings}</dd>
                 </div>
               </dl>
             </div>
@@ -103,7 +103,7 @@ export function OrgsStatCards() {
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <StatCard label="Organizations" value={orgs.length} accent="text-slate-700" />
       <StatCard label="Total Users" value={totals.users} accent="text-blue-600" />
-      <StatCard label="Total Units" value={totals.units} accent="text-indigo-600" />
+      <StatCard label="Total Units" value={totals.units} accent="text-brand-violet" />
       <StatCard label="Active Showings" value={totals.active} accent="text-emerald-600" />
     </div>
   );

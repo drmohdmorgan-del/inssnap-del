@@ -120,7 +120,7 @@ export function UnitsManager() {
           <button
             type="submit"
             disabled={!newLabel.trim() || !newPropertyId}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
+            className="rounded-lg bg-brand-violet px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-violet-light disabled:opacity-40"
           >
             Add unit
           </button>

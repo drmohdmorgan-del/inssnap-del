@@ -91,7 +91,7 @@ export function ProspectView({ user }: { user: User }) {
                 <button
                   disabled={busy}
                   onClick={() => request(u.id)}
-                  className="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                  className="mt-3 w-full rounded-lg bg-brand-violet px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-violet-light disabled:opacity-50"
                 >
                   Request Showing
                 </button>

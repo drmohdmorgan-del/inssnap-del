@@ -20,7 +20,7 @@ const STATE_COLORS: Record<string, string> = {
   REQUESTED: "bg-amber-500",
   RESIDENT_ACCEPTED: "bg-blue-500",
   BROKER_GATE: "bg-purple-500",
-  CONFIRMED: "bg-indigo-500",
+  CONFIRMED: "bg-brand-violet",
   IN_PROGRESS: "bg-cyan-500",
   COMPLETED: "bg-teal-500",
   OUTCOME: "bg-slate-400",

@@ -38,7 +38,7 @@ const STATE_COLORS: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
   RESIDENT_ACCEPTED: "bg-blue-100 text-blue-800",
   BROKER_GATE: "bg-purple-100 text-purple-800",
-  CONFIRMED: "bg-indigo-100 text-indigo-800",
+  CONFIRMED: "bg-brand-violet/10 text-brand-violet",
   IN_PROGRESS: "bg-cyan-100 text-cyan-800",
   COMPLETED: "bg-teal-100 text-teal-800",
   OUTCOME: "bg-slate-200 text-slate-800",
@@ -73,7 +73,7 @@ export function ShowingsMonitor() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Active Showings" value={active.length} accent="text-indigo-600" />
+        <StatCard label="Active Showings" value={active.length} accent="text-brand-violet" />
         <StatCard
           label="Completed"
           value={showings.filter((s) => s.state === "OUTCOME").length}

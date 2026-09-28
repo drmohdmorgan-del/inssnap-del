@@ -98,7 +98,7 @@ export function PropertiesManager() {
         <button
           type="submit"
           disabled={busy || !name.trim() || !address.trim()}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-40"
+          className="rounded-lg bg-brand-violet px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-violet-light disabled:opacity-40"
         >
           Add property
         </button>
@@ -127,7 +127,7 @@ export function PropertiesManager() {
                 />
                 <button
                   onClick={saveEdit}
-                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  className="rounded-lg bg-brand-violet px-3 py-2 text-sm font-medium text-white hover:bg-brand-violet-light"
                 >
                   Save
                 </button>
@@ -150,7 +150,7 @@ export function PropertiesManager() {
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => setEditing(p)}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-violet hover:bg-brand-violet/10"
                   >
                     Edit
                   </button>

@@ -30,7 +30,7 @@ const STATE_COLORS: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
   RESIDENT_ACCEPTED: "bg-blue-100 text-blue-800",
   BROKER_GATE: "bg-purple-100 text-purple-800",
-  CONFIRMED: "bg-indigo-100 text-indigo-800",
+  CONFIRMED: "bg-brand-violet/10 text-brand-violet",
   IN_PROGRESS: "bg-cyan-100 text-cyan-800",
   COMPLETED: "bg-teal-100 text-teal-800",
   OUTCOME: "bg-slate-200 text-slate-800",
@@ -93,7 +93,7 @@ export function BrokerView({ user }: { user: User }) {
                   <button
                     disabled={busy}
                     onClick={() => act(s.id, "BROKER_ACCEPT")}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                    className="rounded-lg bg-brand-violet px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-violet-light disabled:opacity-50"
                   >
                     Accept
                   </button>
@@ -137,7 +137,7 @@ export function BrokerView({ user }: { user: User }) {
                         key={a.label}
                         disabled={busy}
                         onClick={() => act(s.id, a.transition)}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                        className="rounded-lg bg-brand-violet px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-violet-light disabled:opacity-50"
                       >
                         {a.label}
                       </button>

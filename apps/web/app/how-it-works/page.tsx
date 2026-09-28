@@ -33,7 +33,7 @@ export default function HowItWorksPage() {
                 key={step.title}
                 className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-sm font-bold text-white">
                   {i + 1}
                 </span>
                 <div>
@@ -65,7 +65,7 @@ export default function HowItWorksPage() {
               ].map((state) => (
                 <span
                   key={state}
-                  className="rounded-full bg-indigo-50 px-3 py-1.5 font-mono text-xs font-semibold text-indigo-700"
+                  className="rounded-full bg-brand-violet/10 px-3 py-1.5 font-mono text-xs font-semibold text-brand-violet"
                 >
                   {state}
                 </span>

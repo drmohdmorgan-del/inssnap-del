@@ -13,6 +13,7 @@ import {
   Body,
   Button,
   Card,
+  LogoMark,
   Muted,
   Screen,
   TextField,
@@ -70,7 +71,12 @@ export function LoginScreen({
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: "center" }}>
-        <Title>INSSNAPP</Title>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+          <LogoMark size={48} />
+          <View style={{ marginLeft: 12 }}>
+            <Title>INSSNAPP</Title>
+          </View>
+        </View>
         <Body>Real-time showing coordination for occupied units.</Body>
         <View style={{ height: 16 }} />
         <Card>

@@ -44,7 +44,7 @@ export function ReportsPanel() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Showings" value={report.totals.showings} accent="text-indigo-600" />
+        <StatCard label="Total Showings" value={report.totals.showings} accent="text-brand-violet" />
         <StatCard label="Active" value={report.totals.activeShowings} accent="text-blue-600" />
         <StatCard label="Transitions" value={report.totals.transitions} accent="text-purple-600" />
         <StatCard
@@ -68,7 +68,7 @@ export function ReportsPanel() {
                   </span>
                   <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-indigo-500"
+                      className="h-full rounded-full bg-brand-violet"
                       style={{
                         width: `${report.totals.showings ? (count / report.totals.showings) * 100 : 0}%`,
                       }}
