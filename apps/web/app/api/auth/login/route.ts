@@ -1,7 +1,16 @@
+/**
+ * Two-step login — TASK-002.
+ *
+ * Step 1 (this route): verify email + password. If the account has MFA
+ * enabled, return HTTP 202 with a short-lived single-use challenge id
+ * instead of a session. Otherwise issue the session immediately.
+ * Step 2: POST /api/auth/mfa/verify with { challengeId, code }.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { signSession, SESSION_COOKIE } from "@inssnapp/auth";
-import { verifyPassword } from "../../../../lib/password";
-import { store } from "../../../../lib/store";
+import { verifyPassword, newMfaChallengeId, MFA_CHALLENGE_TTL_MS } from "@inssnapp/auth";
+import { getAuthStore } from "../../../../lib/auth-store";
+import { issueSessionResponse } from "../../../../lib/auth-helpers";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -10,37 +19,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
 
-  const user = store.users.byEmail(email);
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  const store = getAuthStore();
+  // Login-only cross-org lookup; the organization is resolved from the
+  // matched user record and every later query is org-scoped.
+  const user = await store.getUserByEmailAnyOrg(email);
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    // Same response for unknown email vs wrong password (no oracle).
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
-  // MFA gate for privileged roles (foundation — full MFA in TASK-002).
+  // MFA gate for privileged roles: no session until the TOTP step passes.
   if (user.mfaEnabled) {
-    return NextResponse.json({ error: "MFA required.", mfaRequired: true }, { status: 403 });
-  }
-
-  const session = await signSession({
-    userId: user.id,
-    organizationId: user.organizationId,
-    email: user.email,
-    fullName: user.fullName,
-    role: user.role,
-  });
-  const token = store.sessions.create(user.id, user.organizationId);
-
-  const res = NextResponse.json({
-    user: {
+    // Challenges persist in the AuthStore (not process memory) so the
+    // challenge issued here is consumable by any server instance.
+    const challengeId = newMfaChallengeId();
+    await store.createMfaChallenge({
+      id: challengeId,
       userId: user.id,
       organizationId: user.organizationId,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-    },
-  });
-  res.headers.append(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`,
-  );
-  return res;
+      expiresAt: new Date(Date.now() + MFA_CHALLENGE_TTL_MS),
+    });
+    return NextResponse.json({ mfaRequired: true, challengeId }, { status: 202 });
+  }
+
+  return issueSessionResponse(user);
 }

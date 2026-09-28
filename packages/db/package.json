@@ -5,6 +5,9 @@
   "description": "INSSNAPP PostgreSQL schema — organization-scoped, tenant-isolated.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "dependencies": {
+    "@inssnapp/auth": "*"
+  },
   "peerDependencies": {
     "pg": "^8.13.0"
   }

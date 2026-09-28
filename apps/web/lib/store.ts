@@ -1,4 +1,5 @@
 import type { Showing, ShowingEvent, ShowingState } from "@inssnapp/engine";
+import { DEMO_TOTP_SECRET } from "./demo";
 
 /**
  * In-memory data store implementing the engine's persistence boundary.
@@ -18,6 +19,8 @@ export interface User {
   passwordHash: string;
   role: "management" | "resident" | "prospect" | "broker" | "inssnapp_admin";
   mfaEnabled: boolean;
+  /** Base32 TOTP secret; null until enrolled. Never log or expose. */
+  mfaSecret: string | null;
 }
 
 export interface Property {
@@ -42,9 +45,12 @@ export interface Org {
   name: string;
 }
 
-// Demo password hash for "pw" — replace with argon2id in TASK-002.
+// DEV-ONLY demo credentials. argon2id hash of the password "pw", generated
+// at seed time for TASK-002 (see packages/auth/src/password.ts).
+// The admin TOTP secret lives in ./demo.ts (dev-only fixed secret so local
+// MFA login works); real users enroll their own secret.
 const DEMO_HASH =
-  "s1:e33bac68fd8099a0c1c7c3ca8daa83f5:1ce3d930b682994417ea5d7a4a4c509b84d0d7ddd69787a59dd02941a35f8603";
+  "$argon2id$v=19$m=19456,p=1,t=2$OYHMuHyTLMC4R0bIny3QRA$q9Lu4q9xPqFR1KxuHvns52eTycXSLUe4uKZu3Fvyqfg";
 
 interface StoreData {
   orgs: Org[];
@@ -53,7 +59,7 @@ interface StoreData {
   units: Unit[];
   showings: Map<string, Showing>;
   events: ShowingEvent[];
-  sessions: Map<string, { userId: string; organizationId: string; expiresAt: number }>;
+  sessions: Map<string, { tokenHash: string; userId: string; organizationId: string; expiresAt: number }>;
   seq: number;
 }
 
@@ -64,12 +70,12 @@ function seed(): StoreData {
       { id: "org_2", name: "Harbor Point Management" },
     ],
     users: [
-      { id: "u_mgmt", organizationId: "org_1", email: "manager@inssnapp.demo", fullName: "Morgan Reyes", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false },
-      { id: "u_admin", organizationId: "org_1", email: "admin@inssnapp.demo", fullName: "Avery Chen", passwordHash: DEMO_HASH, role: "inssnapp_admin", mfaEnabled: true },
-      { id: "u_resident", organizationId: "org_1", email: "resident@inssnapp.demo", fullName: "Jordan Lee", passwordHash: DEMO_HASH, role: "resident", mfaEnabled: false },
-      { id: "u_prospect", organizationId: "org_1", email: "prospect@inssnapp.demo", fullName: "Taylor Brooks", passwordHash: DEMO_HASH, role: "prospect", mfaEnabled: false },
-      { id: "u_broker", organizationId: "org_1", email: "broker@inssnapp.demo", fullName: "Casey Kim", passwordHash: DEMO_HASH, role: "broker", mfaEnabled: false },
-      { id: "u_mgmt2", organizationId: "org_2", email: "manager2@inssnapp.demo", fullName: "Riley Park", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false },
+      { id: "u_mgmt", organizationId: "org_1", email: "manager@inssnapp.demo", fullName: "Morgan Reyes", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false, mfaSecret: null },
+      { id: "u_admin", organizationId: "org_1", email: "admin@inssnapp.demo", fullName: "Avery Chen", passwordHash: DEMO_HASH, role: "inssnapp_admin", mfaEnabled: true, mfaSecret: DEMO_TOTP_SECRET },
+      { id: "u_resident", organizationId: "org_1", email: "resident@inssnapp.demo", fullName: "Jordan Lee", passwordHash: DEMO_HASH, role: "resident", mfaEnabled: false, mfaSecret: null },
+      { id: "u_prospect", organizationId: "org_1", email: "prospect@inssnapp.demo", fullName: "Taylor Brooks", passwordHash: DEMO_HASH, role: "prospect", mfaEnabled: false, mfaSecret: null },
+      { id: "u_broker", organizationId: "org_1", email: "broker@inssnapp.demo", fullName: "Casey Kim", passwordHash: DEMO_HASH, role: "broker", mfaEnabled: false, mfaSecret: null },
+      { id: "u_mgmt2", organizationId: "org_2", email: "manager2@inssnapp.demo", fullName: "Riley Park", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false, mfaSecret: null },
     ],
     properties: [
       { id: "prop_1", organizationId: "org_1", name: "The Alder", address: "120 Alder St, Seattle, WA" },
@@ -199,22 +205,42 @@ export const store = {
   },
 
   sessions: {
-    create(userId: string, organizationId: string, ttlMs = 1000 * 60 * 60 * 24): string {
-      const token = newId("tok") + newId("tok");
-      db.sessions.set(token, { userId, organizationId, expiresAt: Date.now() + ttlMs });
-      return token;
+    create(record: {
+      tokenHash: string;
+      userId: string;
+      organizationId: string;
+      expiresAt: Date;
+    }): { tokenHash: string; userId: string; organizationId: string; expiresAt: number } {
+      const row = {
+        tokenHash: record.tokenHash,
+        userId: record.userId,
+        organizationId: record.organizationId,
+        expiresAt: record.expiresAt.getTime(),
+      };
+      db.sessions.set(record.tokenHash, row);
+      return row;
     },
-    get(token: string): { userId: string; organizationId: string } | null {
-      const s = db.sessions.get(token);
+    getByTokenHash(tokenHash: string): {
+      tokenHash: string;
+      userId: string;
+      organizationId: string;
+      expiresAt: number;
+    } | null {
+      const s = db.sessions.get(tokenHash);
       if (!s) return null;
       if (s.expiresAt < Date.now()) {
-        db.sessions.delete(token);
+        db.sessions.delete(tokenHash);
         return null;
       }
       return s;
     },
-    destroy(token: string): void {
-      db.sessions.delete(token);
+    revoke(tokenHash: string): void {
+      db.sessions.delete(tokenHash);
+    },
+    revokeByUser(userId: string): void {
+      for (const [hash, s] of db.sessions) {
+        if (s.userId === userId) db.sessions.delete(hash);
+      }
     },
   },
 };

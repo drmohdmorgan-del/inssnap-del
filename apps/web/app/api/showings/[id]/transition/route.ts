@@ -27,6 +27,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!showing) {
     return NextResponse.json({ error: "Showing not found." }, { status: 404 });
   }
+  // Tenant isolation at the API boundary (the engine enforces it too).
+  // 404 — not 403 — so callers cannot probe other organizations' records.
+  if (showing.organizationId !== user.organizationId) {
+    return NextResponse.json({ error: "Showing not found." }, { status: 404 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const transition = body.transition as Transition;

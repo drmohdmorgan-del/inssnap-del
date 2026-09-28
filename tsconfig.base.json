@@ -9,6 +9,10 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    // Explicit ".ts" extensions on relative imports: required for Node's
+    // native type-stripping (npm run db:migrate / db:seed). Safe because
+    // every project in this repo sets noEmit.
+    "allowImportingTsExtensions": true
   }
 }

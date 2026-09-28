@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@inssnapp/auth": "*",
+    "@inssnapp/db": "*",
     "@inssnapp/engine": "*",
     "next": "^15.5.0",
     "react": "^19.1.0",

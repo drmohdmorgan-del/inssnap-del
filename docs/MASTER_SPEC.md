@@ -1,7 +1,7 @@
 # INSSNAPP Master Specification
 
 **Version:** September 2026
-**Status:** Foundation (TASK-001 complete, TASK-002/003 in progress)
+**Status:** Foundation (TASK-001/002 complete, TASK-003 in progress)
 
 ## 1. Vision
 
@@ -54,7 +54,7 @@ The Showing Engine is the sole authority permitted to change showing state.
 | Task | Scope | Status |
 |------|-------|--------|
 | TASK-001 | Monorepo foundation, Management + Control Center foundations, Engine state defs, PMS boundary, screening boundary, roles, CI | ✅ Complete |
-| TASK-002 | PostgreSQL schema, organizations, authentication, RBAC, tenant isolation | 🔄 In progress |
+| TASK-002 | PostgreSQL schema, organizations, authentication, RBAC, tenant isolation | ✅ Complete (2026-09-28: argon2id hashing, real TOTP MFA for privileged roles, server-side sessions, per-org email uniqueness, idempotent `npm run db:migrate`; production still runs the in-memory store — live Postgres wiring is TASK-003, `DATABASE_URL` undecided) |
 | TASK-003 | Persistent Showing Engine APIs, event model, locking, idempotency, audit | 🔄 In progress |
 | TASK-004 | Resident role experience | ⏳ Pending |
 | TASK-005 | Prospect role experience | ⏳ Pending |

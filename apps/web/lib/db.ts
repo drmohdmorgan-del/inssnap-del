@@ -45,38 +45,10 @@ async function getPool(): Promise<any> {
 }
 
 // ---- Unified data access ----------------------------------------------------
+// NOTE (TASK-002): users and server-side sessions live behind getAuthStore()
+// (apps/web/lib/auth-store.ts) — in-memory seed for local dev, PostgreSQL
+// when DATABASE_URL is set. They are intentionally not part of this object.
 export const db = {
-  users: {
-    async byEmail(email: string) {
-      if (!usingPostgres) return mem.users.byEmail(email);
-      const { default: pg } = await import("pg");
-      const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-      await client.connect();
-      const res = await client.query(
-        `SELECT id, organization_id AS "organizationId", email, full_name AS "fullName",
-                password_hash AS "passwordHash", role, mfa_enabled AS "mfaEnabled"
-         FROM users WHERE email = $1`,
-        [email.toLowerCase()],
-      );
-      await client.end();
-      return res.rows[0] ?? null;
-    },
-
-    async byId(id: string) {
-      if (!usingPostgres) return mem.users.byId(id);
-      const { default: pg } = await import("pg");
-      const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-      await client.connect();
-      const res = await client.query(
-        `SELECT id, organization_id AS "organizationId", email, full_name AS "fullName", role
-         FROM users WHERE id = $1`,
-        [id],
-      );
-      await client.end();
-      return res.rows[0] ?? null;
-    },
-  },
-
   properties: {
     async byOrg(organizationId: string) {
       if (!usingPostgres) return mem.properties.byOrg(organizationId);
@@ -228,18 +200,6 @@ export const db = {
         [key],
       );
       return res.rows[0] ?? null;
-    },
-  },
-
-  sessions: {
-    async create(userId: string, organizationId: string) {
-      return mem.sessions.create(userId, organizationId);
-    },
-    async get(token: string) {
-      return mem.sessions.get(token);
-    },
-    async destroy(token: string) {
-      mem.sessions.destroy(token);
     },
   },
 };

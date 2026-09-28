@@ -1,5 +1,5 @@
 import type { Role } from "@inssnapp/engine";
-import type { SessionUser } from "./session";
+import type { SessionUser } from "./session.ts";
 
 /**
  * Role-based authorization guards.
@@ -44,5 +44,20 @@ export function requireRole(
   if (!user) throw new ForbiddenError("Not authenticated");
   if (!allowed.includes(user.role)) {
     throw new ForbiddenError(`Role '${user.role}' is not permitted`);
+  }
+}
+
+/**
+ * Tenant-isolation guard: the user may only touch records in their own
+ * organization. Throws ForbiddenError on mismatch (callers map to 403,
+ * or to 404 when they must not reveal that the record exists).
+ */
+export function assertSameOrg(
+  user: SessionUser | null,
+  organizationId: string,
+): asserts user is SessionUser {
+  if (!user) throw new ForbiddenError("Not authenticated");
+  if (user.organizationId !== organizationId) {
+    throw new ForbiddenError("Cross-organization access denied");
   }
 }

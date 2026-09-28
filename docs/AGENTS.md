@@ -24,8 +24,10 @@ inssnapp/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start the Next.js dev server |
-| `npm test` | Run Showing Engine tests |
+| `npm test` | Run Showing Engine + auth tests |
 | `npm run build` | Production build |
+| `npm run db:migrate` | Apply the PostgreSQL schema (requires `DATABASE_URL`, idempotent) |
+| `npm run db:seed` | Seed demo orgs/users — dev only, requires `DATABASE_URL`, refuses production |
 
 ## Showing Engine Authority
 
@@ -68,3 +70,12 @@ transitions. No UI, adapter, or integration may independently define workflow ru
 | Resident | resident@inssnapp.demo |
 | Prospect | prospect@inssnapp.demo |
 | Broker | broker@inssnapp.demo |
+
+**Dev only:** the admin account has MFA enabled. Enroll the demo TOTP secret
+from `apps/web/lib/demo.ts` in an authenticator app to complete admin login.
+Demo passwords are argon2id-hashed at seed time (`apps/web/lib/store.ts`);
+the legacy `s1:` demo hashes are no longer accepted.
+
+**Production auth notes:** set `INSSNAPP_AUTH_SECRET` (session-cookie HMAC key)
+— the built-in fallback is dev-only. Sessions are server-side and expire
+after 7 days; admin accounts require TOTP (otplib, ±30s tolerance).

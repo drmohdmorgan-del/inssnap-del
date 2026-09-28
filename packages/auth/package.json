@@ -5,7 +5,15 @@
   "description": "INSSNAPP role-based authentication and session controls.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
-    "@inssnapp/engine": "*"
+    "@inssnapp/engine": "*",
+    "argon2": "^0.45.1",
+    "otplib": "^13.5.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
   }
 }
