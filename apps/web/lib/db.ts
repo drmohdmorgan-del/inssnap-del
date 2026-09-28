@@ -35,6 +35,8 @@ export interface PropertyRow {
   organizationId: string;
   name: string;
   address: string;
+  /** Vendor-stable external id from the PMS sync; null for manually created properties. */
+  pmsExternalId: string | null;
 }
 
 export interface UnitRow {
@@ -63,8 +65,14 @@ export interface PmsAdapterRow {
   id: string;
   organizationId: string;
   provider: string;
+  /** Which implementation backs this row: 'sandbox' | vendor name (TASK-008). */
+  adapterType: string;
+  /** Adapter config JSON (vendor/dataset knobs — never raw secrets). */
+  config: Record<string, unknown>;
   status: string;
   lastSyncAt: string | null;
+  lastHealthCheckAt: string | null;
+  healthStatus: string | null;
 }
 
 export interface RatingRow {
@@ -156,7 +164,8 @@ export const db = {
       if (!usingPostgres) return mem.properties.byOrg(organizationId);
       const pool = await getPool();
       const res = await pool.query(
-        `SELECT id, organization_id AS "organizationId", name, address
+        `SELECT id, organization_id AS "organizationId", name, address,
+                pms_external_id AS "pmsExternalId"
          FROM properties WHERE organization_id = $1`,
         [organizationId],
       );
@@ -167,34 +176,59 @@ export const db = {
       if (!usingPostgres) return mem.properties.byId(id);
       const pool = await getPool();
       const res = await pool.query(
-        `SELECT id, organization_id AS "organizationId", name, address
+        `SELECT id, organization_id AS "organizationId", name, address,
+                pms_external_id AS "pmsExternalId"
          FROM properties WHERE id = $1`,
         [id],
       );
       return res.rows[0] ?? null;
     },
 
-    async create(organizationId: string, name: string, address: string): Promise<PropertyRow> {
-      if (!usingPostgres) return mem.properties.create(organizationId, name, address);
+    /** Find by vendor external id within one organization (TASK-008 sync). */
+    async byExternalId(organizationId: string, pmsExternalId: string): Promise<PropertyRow | null> {
+      if (!usingPostgres) return mem.properties.byExternalId(organizationId, pmsExternalId);
       const pool = await getPool();
       const res = await pool.query(
-        `INSERT INTO properties (organization_id, name, address)
-         VALUES ($1, $2, $3)
-         RETURNING id, organization_id AS "organizationId", name, address`,
-        [organizationId, name, address],
+        `SELECT id, organization_id AS "organizationId", name, address,
+                pms_external_id AS "pmsExternalId"
+         FROM properties WHERE organization_id = $1 AND pms_external_id = $2 LIMIT 1`,
+        [organizationId, pmsExternalId],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async create(
+      organizationId: string,
+      name: string,
+      address: string,
+      opts: { pmsExternalId?: string | null } = {},
+    ): Promise<PropertyRow> {
+      if (!usingPostgres) return mem.properties.create(organizationId, name, address, opts);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO properties (organization_id, name, address, pms_external_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, organization_id AS "organizationId", name, address,
+                   pms_external_id AS "pmsExternalId"`,
+        [organizationId, name, address, opts.pmsExternalId ?? null],
       );
       return res.rows[0];
     },
 
-    async patch(id: string, patch: { name?: string; address?: string }): Promise<PropertyRow | null> {
+    async patch(
+      id: string,
+      patch: { name?: string; address?: string; pmsExternalId?: string },
+    ): Promise<PropertyRow | null> {
       if (!usingPostgres) return mem.properties.patch(id, patch);
       const pool = await getPool();
       const res = await pool.query(
         `UPDATE properties
-         SET name = COALESCE($2, name), address = COALESCE($3, address)
+         SET name = COALESCE($2, name), address = COALESCE($3, address),
+             pms_external_id = COALESCE($4, pms_external_id)
          WHERE id = $1
-         RETURNING id, organization_id AS "organizationId", name, address`,
-        [id, patch.name ?? null, patch.address ?? null],
+         RETURNING id, organization_id AS "organizationId", name, address,
+                   pms_external_id AS "pmsExternalId"`,
+        [id, patch.name ?? null, patch.address ?? null, patch.pmsExternalId ?? null],
       );
       return res.rows[0] ?? null;
     },
@@ -230,6 +264,25 @@ export const db = {
                 resident_available AS "residentAvailable"
          FROM units WHERE id = $1`,
         [id],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    /** Find by vendor external id within one property (TASK-008 sync). */
+    async byExternalId(
+      organizationId: string,
+      propertyId: string,
+      pmsExternalId: string,
+    ): Promise<UnitRow | null> {
+      if (!usingPostgres) return mem.units.byExternalId(organizationId, propertyId, pmsExternalId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", property_id AS "propertyId",
+                label, pms_external_id AS "pmsExternalId", eligible,
+                resident_available AS "residentAvailable"
+         FROM units
+         WHERE organization_id = $1 AND property_id = $2 AND pms_external_id = $3 LIMIT 1`,
+        [organizationId, propertyId, pmsExternalId],
       );
       return res.rows[0] ?? null;
     },
@@ -298,6 +351,24 @@ export const db = {
 
   // ---- Showing engine persistence ----
   residents: {
+    /** Idempotent resident ↔ unit link (TASK-008 roster sync). Returns true when newly created. */
+    async link(userId: string, unitId: string): Promise<boolean> {
+      if (!usingPostgres) return mem.residents.link(userId, unitId);
+      const pool = await getPool();
+      const unit = await pool.query(
+        `SELECT organization_id FROM units WHERE id = $1`,
+        [unitId],
+      );
+      if (!unit.rows[0]) throw new Error(`residents.link: unit ${unitId} not found`);
+      const res = await pool.query(
+        `INSERT INTO residents (organization_id, user_id, unit_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, unit_id) DO NOTHING`,
+        [unit.rows[0].organization_id, userId, unitId],
+      );
+      return (res.rowCount ?? 0) > 0;
+    },
+
     async byUnit(unitId: string) {
       if (!usingPostgres) return mem.residents.byUnit(unitId);
       const pool = await getPool();
@@ -466,12 +537,53 @@ export const db = {
       if (!usingPostgres) return mem.pmsAdapters.byOrg(organizationId);
       const pool = await getPool();
       const res = await pool.query(
-        `SELECT id, organization_id AS "organizationId", provider, status,
-                last_sync_at AS "lastSyncAt"
+        `SELECT id, organization_id AS "organizationId", provider,
+                adapter_type AS "adapterType", config, status,
+                last_sync_at AS "lastSyncAt",
+                last_health_check_at AS "lastHealthCheckAt",
+                health_status AS "healthStatus"
          FROM pms_adapters WHERE organization_id = $1`,
         [organizationId],
       );
       return res.rows;
+    },
+
+    /** Partial update of an adapter row (sync/health bookkeeping, TASK-008). */
+    async update(
+      id: string,
+      patch: {
+        status?: string;
+        lastSyncAt?: string | null;
+        lastHealthCheckAt?: string | null;
+        healthStatus?: string | null;
+        config?: Record<string, unknown>;
+      },
+    ): Promise<PmsAdapterRow | null> {
+      if (!usingPostgres) return mem.pmsAdapters.update(id, patch);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE pms_adapters
+         SET status = COALESCE($2, status),
+             last_sync_at = COALESCE($3, last_sync_at),
+             last_health_check_at = COALESCE($4, last_health_check_at),
+             health_status = COALESCE($5, health_status),
+             config = COALESCE($6, config)
+         WHERE id = $1
+         RETURNING id, organization_id AS "organizationId", provider,
+                   adapter_type AS "adapterType", config, status,
+                   last_sync_at AS "lastSyncAt",
+                   last_health_check_at AS "lastHealthCheckAt",
+                   health_status AS "healthStatus"`,
+        [
+          id,
+          patch.status ?? null,
+          patch.lastSyncAt ?? null,
+          patch.lastHealthCheckAt ?? null,
+          patch.healthStatus ?? null,
+          patch.config ? JSON.stringify(patch.config) : null,
+        ],
+      );
+      return res.rows[0] ?? null;
     },
   },
 

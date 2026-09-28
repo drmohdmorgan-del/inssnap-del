@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, unauthorized, forbidden } from "../../../lib/auth-helpers";
 import { db } from "../../../lib/db";
+import { getNotificationAdapter } from "@inssnapp/integrations";
 import { isPrivileged } from "@inssnapp/auth";
 
 /**
- * Truthful integration status for the caller's organization.
+ * Truthful integration status for the caller's organization (TASK-007/008).
  *
- * Every entry reflects actual state — adapter rows in the database, or the
- * honest absence of one. There are no hardcoded "connected" badges here:
- * PMS adapters only exist as sandbox-boundary rows (real adapters are
- * TASK-008), and no notification or screening adapter code exists at all
- * (TASK-008 / TASK-009).
+ * Every entry reflects actual state — adapter rows in the database (type,
+ * last sync, last health check), or the honest absence of one. There are no
+ * hardcoded "connected" badges here: the sandbox PMS adapter reports real
+ * sync/health bookkeeping, and notifications report the actually-registered
+ * provider (the dev console logger until a real SMS/email provider is
+ * registered behind the NotificationAdapter interface).
  *
  * Privileged roles only (management, inssnapp_admin).
  */
@@ -25,6 +27,10 @@ export async function GET(req: NextRequest) {
     name: string;
     status: "connected" | "sandbox" | "not_connected" | "not_configured" | "error";
     detail: string;
+    adapterType?: string;
+    lastSyncAt?: string | null;
+    lastHealthCheckAt?: string | null;
+    healthStatus?: string | null;
   }[] = [];
 
   if (adapters.length === 0) {
@@ -36,6 +42,10 @@ export async function GET(req: NextRequest) {
   } else {
     for (const a of adapters) {
       const provider = a.provider.charAt(0).toUpperCase() + a.provider.slice(1);
+      const health =
+        a.lastHealthCheckAt != null
+          ? ` Last health check ${a.lastHealthCheckAt}${a.healthStatus ? ` (${a.healthStatus})` : ""}.`
+          : " No health check recorded yet.";
       integrations.push({
         name: `${provider} PMS`,
         status: a.status === "sandbox" || a.status === "connected" || a.status === "error"
@@ -43,21 +53,31 @@ export async function GET(req: NextRequest) {
           : "not_connected",
         detail:
           a.status === "sandbox"
-            ? "Adapter boundary configured · sandbox mode only — no live PMS sync (TASK-008)."
+            ? `Sandbox adapter active (${a.adapterType}).` +
+              (a.lastSyncAt ? ` Last sync ${a.lastSyncAt}.` : " No sync run yet.") +
+              health
             : a.status === "connected"
-              ? "Connected."
-              : a.lastSyncAt
-                ? `Last sync ${a.lastSyncAt}.`
-                : "Adapter configured; no sync recorded yet.",
+              ? "Connected." + health
+              : (a.lastSyncAt ? `Last sync ${a.lastSyncAt}.` : "Adapter configured; no sync recorded yet.") +
+                health,
+        adapterType: a.adapterType,
+        lastSyncAt: a.lastSyncAt,
+        lastHealthCheckAt: a.lastHealthCheckAt,
+        healthStatus: a.healthStatus,
       });
     }
   }
 
+  const notifier = getNotificationAdapter();
   integrations.push(
     {
       name: "Notifications",
-      status: "not_configured",
-      detail: "No notification adapter is implemented yet — notifications are planned for TASK-008.",
+      status: notifier.name === "console" ? "sandbox" : "connected",
+      detail:
+        notifier.name === "console"
+          ? "ConsoleNotificationAdapter — dev logging only; no real SMS or email is sent. " +
+            "A real provider registers behind the NotificationAdapter interface without engine changes."
+          : `Provider "${notifier.name}" registered behind the NotificationAdapter interface.`,
     },
     {
       name: "Screening",

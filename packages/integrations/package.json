@@ -1,0 +1,1 @@
+{"description":"INSSNAPP vendor-neutral integration boundaries: PMS adapters and notification adapters (TASK-008).","devDependencies":{"typescript":"^5.5.0","vitest":"^2.0.0"},"main":"./src/index.ts","name":"@inssnapp/integrations","private":true,"scripts":{"test":"vitest run","test:watch":"vitest"},"types":"./src/index.ts","version":"0.1.0"}

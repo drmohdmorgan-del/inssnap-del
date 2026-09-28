@@ -251,3 +251,15 @@ CREATE TABLE IF NOT EXISTS showing_ratings (
   UNIQUE (showing_id, rater_user_id)
 );
 CREATE INDEX IF NOT EXISTS showing_ratings_showing_idx ON showing_ratings (showing_id);
+
+-- ---- TASK-008: real PMS adapter + notification boundaries -------------------
+-- The PMS adapter boundary table gains the fields a working adapter needs:
+-- adapter_type (which implementation: 'sandbox' today; real vendors register
+-- as commercial/API access permits), config JSON (vendor/dataset knobs —
+-- never raw secrets), and last-health-check bookkeeping. Properties gain a
+-- vendor external id so syncs can upsert idempotently instead of duplicating.
+ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS adapter_type TEXT NOT NULL DEFAULT 'sandbox';
+ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS last_health_check_at TIMESTAMPTZ;
+ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS health_status TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS pms_external_id TEXT;

@@ -6,6 +6,10 @@ type Integration = {
   name: string;
   status: "connected" | "sandbox" | "not_connected" | "not_configured" | "error";
   detail: string;
+  adapterType?: string;
+  lastSyncAt?: string | null;
+  lastHealthCheckAt?: string | null;
+  healthStatus?: string | null;
 };
 
 const STATUS_STYLES: Record<Integration["status"], string> = {
@@ -56,8 +60,26 @@ export function IntegrationStatus() {
               className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-700">{i.name}</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {i.name}
+                  {i.adapterType && (
+                    <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-normal text-slate-600">
+                      {i.adapterType}
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs text-slate-500">{i.detail}</p>
+                {(i.lastSyncAt || i.lastHealthCheckAt) && (
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    {i.lastSyncAt && <>Last sync: {i.lastSyncAt} · </>}
+                    {i.lastHealthCheckAt && (
+                      <>
+                        Last health check: {i.lastHealthCheckAt}
+                        {i.healthStatus ? ` (${i.healthStatus})` : ""}
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
               <span
                 className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[i.status]}`}

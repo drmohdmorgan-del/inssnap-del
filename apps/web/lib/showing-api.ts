@@ -16,6 +16,7 @@ import { getSessionUser, unauthorized, forbidden } from "./auth-helpers";
 import { getAuthStore } from "./auth-store";
 import { engine } from "./engine";
 import { db } from "./db";
+import { notifyShowingTransition } from "./notifications";
 
 /** Maps engine result codes to HTTP statuses. */
 export function transitionStatus(code: string): number {
@@ -115,6 +116,14 @@ export async function runShowingTransition(
       { status: transitionStatus(result.code) },
     );
   }
+
+  // Notification side effect (TASK-008): fired through the NotificationAdapter
+  // interface, fail-open — a provider failure is logged and never breaks the
+  // already-committed transition. Idempotent replays do not re-notify.
+  if (!result.replayed) {
+    await notifyShowingTransition(opts.transition, result.showing, user.role);
+  }
+
   return NextResponse.json({
     showing: result.showing,
     event: result.event,

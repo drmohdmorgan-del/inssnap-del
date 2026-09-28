@@ -6,6 +6,20 @@ type Integration = {
   name: string;
   status: "connected" | "sandbox" | "not_connected" | "not_configured" | "error";
   detail: string;
+  adapterType?: string;
+  lastSyncAt?: string | null;
+  lastHealthCheckAt?: string | null;
+  healthStatus?: string | null;
+};
+
+type SyncResult = {
+  ok: boolean;
+  sync: {
+    properties: { created: number; updated: number };
+    units: { created: number; updated: number };
+    residents: { linked: number; skippedNoUnit: number; skippedNoUser: number };
+    errors: string[];
+  };
 };
 
 const STATUS_STYLES: Record<Integration["status"], string> = {
@@ -27,6 +41,9 @@ const STATUS_LABELS: Record<Integration["status"], string> = {
 export function SettingsPanel() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/integrations");
@@ -37,6 +54,26 @@ export function SettingsPanel() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const syncNow = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setSyncError(null);
+    try {
+      const res = await fetch("/api/integrations/sync", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        setSyncError(body.error ?? "Sync failed.");
+      } else {
+        setSyncResult(body);
+      }
+    } catch {
+      setSyncError("Sync request failed.");
+    } finally {
+      setSyncing(false);
+      await load();
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -57,8 +94,35 @@ export function SettingsPanel() {
                 className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-700">{i.name}</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    {i.name}
+                    {i.adapterType && (
+                      <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-normal text-slate-600">
+                        {i.adapterType}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-500">{i.detail}</p>
+                  {(i.lastSyncAt || i.lastHealthCheckAt) && (
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {i.lastSyncAt && <>Last sync: {i.lastSyncAt} · </>}
+                      {i.lastHealthCheckAt && (
+                        <>
+                          Last health check: {i.lastHealthCheckAt}
+                          {i.healthStatus ? ` (${i.healthStatus})` : ""}
+                        </>
+                      )}
+                    </p>
+                  )}
+                  {i.adapterType === "sandbox" && (
+                    <button
+                      onClick={syncNow}
+                      disabled={syncing}
+                      className="mt-1.5 rounded-md bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      {syncing ? "Syncing…" : "Sync now"}
+                    </button>
+                  )}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[i.status]}`}
@@ -68,6 +132,24 @@ export function SettingsPanel() {
               </div>
             ))}
           </div>
+        )}
+        {syncResult && (
+          <p className="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            Sync {syncResult.ok ? "completed" : "finished with errors"}:{" "}
+            {syncResult.sync.properties.created + syncResult.sync.properties.updated}{" "}
+            properties ({syncResult.sync.properties.created} new),{" "}
+            {syncResult.sync.units.created + syncResult.sync.units.updated} units (
+            {syncResult.sync.units.created} new), {syncResult.sync.residents.linked}{" "}
+            residents linked
+            {syncResult.sync.errors.length > 0 &&
+              ` — ${syncResult.sync.errors.length} row errors (see server logs)`}
+            .
+          </p>
+        )}
+        {syncError && (
+          <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-800">
+            Sync failed: {syncError}
+          </p>
         )}
       </section>
 

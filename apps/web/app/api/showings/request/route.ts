@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, unauthorized, forbidden } from "../../../../lib/auth-helpers";
 import { engine } from "../../../../lib/engine";
 import { db } from "../../../../lib/db";
+import { notifyShowingTransition } from "../../../../lib/notifications";
 import { transitionStatus } from "../../../../lib/showing-api";
 
 /**
@@ -118,6 +119,12 @@ export async function POST(req: NextRequest) {
       { status: transitionStatus(result.code) },
     );
   }
+
+  // Notification side effect (TASK-008): "request received" via the
+  // NotificationAdapter interface, fail-open — a provider failure is logged
+  // and never breaks the already-committed transition.
+  await notifyShowingTransition("PROSPECT_REQUEST", result.showing, user.role);
+
   return NextResponse.json(
     { showing: result.showing, event: result.event, replayed: false },
     { status: 201 },

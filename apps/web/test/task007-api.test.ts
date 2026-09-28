@@ -326,7 +326,10 @@ describeMem("TASK-007 management + control routes (in-memory path)", () => {
     expect(yardi.status).toBe("sandbox");
     const notifications = json.integrations.find((i: any) => i.name === "Notifications");
     expect(notifications).toBeDefined();
-    expect(notifications.status).toBe("not_configured");
+    // TASK-008: the dev console adapter is registered — honestly "sandbox",
+    // never "connected", until a real SMS/email provider registers.
+    expect(notifications.status).toBe("sandbox");
+    expect(notifications.detail).toMatch(/ConsoleNotificationAdapter/);
     expect(
       json.integrations.every((i: any) => i.status !== "connected"),
       "nothing may claim to be connected without an adapter",

@@ -1,1 +1,25 @@
-{"compilerOptions":{"composite":true,"noEmit":true},"extends":"./tsconfig.base.json","files":[],"references":[{"path":"packages/engine"},{"path":"packages/auth"},{"path":"packages/db"},{"path":"apps/mobile"}]}
+{
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true
+  },
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    {
+      "path": "packages/engine"
+    },
+    {
+      "path": "packages/auth"
+    },
+    {
+      "path": "packages/db"
+    },
+    {
+      "path": "packages/integrations"
+    },
+    {
+      "path": "apps/mobile"
+    }
+  ]
+}

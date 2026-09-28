@@ -28,6 +28,8 @@ export interface Property {
   organizationId: string;
   name: string;
   address: string;
+  /** Vendor-stable external id from the PMS sync (TASK-008); null for manually created properties. */
+  pmsExternalId: string | null;
 }
 
 export interface Unit {
@@ -65,10 +67,21 @@ export interface ShowingRating {
 export interface PmsAdapter {
   id: string;
   organizationId: string;
+  /** Vendor name for display: 'yardi' | 'entrata' | … */
   provider: string;
+  /**
+   * Which implementation backs this row: 'sandbox' today. Real vendor
+   * adapters register here as commercial/API access permits (TASK-008).
+   */
+  adapterType: string;
+  /** Adapter config JSON (vendor/dataset knobs — never raw secrets). */
+  config: Record<string, unknown>;
   /** 'sandbox' | 'connected' | 'error' | 'not_connected' */
   status: string;
   lastSyncAt: string | null;
+  lastHealthCheckAt: string | null;
+  /** 'ok' | 'error' | null — outcome of the last health check. */
+  healthStatus: string | null;
 }
 
 export interface SecurityEvent {
@@ -119,9 +132,9 @@ function seed(): StoreData {
       { id: "u_mgmt2", organizationId: "org_2", email: "manager2@inssnapp.demo", fullName: "Riley Park", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false, mfaSecret: null },
     ],
     properties: [
-      { id: "prop_1", organizationId: "org_1", name: "The Alder", address: "120 Alder St, Seattle, WA" },
-      { id: "prop_2", organizationId: "org_1", name: "Maple Court", address: "88 Maple Ave, Bellevue, WA" },
-      { id: "prop_3", organizationId: "org_2", name: "Harbor Lofts", address: "1 Harbor Blvd, Tacoma, WA" },
+      { id: "prop_1", organizationId: "org_1", name: "The Alder", address: "120 Alder St, Seattle, WA", pmsExternalId: null },
+      { id: "prop_2", organizationId: "org_1", name: "Maple Court", address: "88 Maple Ave, Bellevue, WA", pmsExternalId: null },
+      { id: "prop_3", organizationId: "org_2", name: "Harbor Lofts", address: "1 Harbor Blvd, Tacoma, WA", pmsExternalId: null },
     ],
     units: [
       { id: "unit_1", organizationId: "org_1", propertyId: "prop_1", label: "4B", pmsExternalId: "YRD-10042", eligible: true, residentAvailable: true },
@@ -134,16 +147,21 @@ function seed(): StoreData {
       { userId: "u_resident", unitId: "unit_1" },
       { userId: "u_resident", unitId: "unit_2" },
     ],
-    // PMS adapter boundary rows (TASK-007). Only org_1 has a configured
-    // adapter and it is sandbox-only; org_2 has none — the integrations
-    // status API reports this honestly instead of hardcoding "connected".
+    // PMS adapter rows (TASK-007 boundary, TASK-008 working sandbox).
+    // org_1 has a sandbox adapter registered (vendor fixture: yardi);
+    // org_2 has none — the integrations status API reports this honestly
+    // instead of hardcoding "connected".
     pmsAdapters: [
       {
         id: "pms_1",
         organizationId: "org_1",
         provider: "yardi",
+        adapterType: "sandbox",
+        config: { vendor: "yardi", dataset: "sandbox-default" },
         status: "sandbox",
         lastSyncAt: null,
+        lastHealthCheckAt: null,
+        healthStatus: null,
       },
     ],
     securityEvents: [],
@@ -191,11 +209,27 @@ export const store = {
       );
       return db.residents.filter((r) => unitIds.has(r.unitId));
     },
+    /** Idempotent resident ↔ unit link (TASK-008 roster sync). Returns true when newly created. */
+    link(userId: string, unitId: string): boolean {
+      if (db.residents.some((r) => r.userId === userId && r.unitId === unitId)) return false;
+      db.residents.push({ userId, unitId });
+      return true;
+    },
   },
 
   pmsAdapters: {
     byOrg(organizationId: string): PmsAdapter[] {
       return db.pmsAdapters.filter((a) => a.organizationId === organizationId);
+    },
+    /** Partial update of an adapter row (sync/health bookkeeping). */
+    update(
+      id: string,
+      patch: Partial<Pick<PmsAdapter, "status" | "lastSyncAt" | "lastHealthCheckAt" | "healthStatus" | "config">>,
+    ): PmsAdapter | null {
+      const idx = db.pmsAdapters.findIndex((a) => a.id === id);
+      if (idx === -1) return null;
+      db.pmsAdapters[idx] = { ...db.pmsAdapters[idx], ...patch };
+      return db.pmsAdapters[idx];
     },
   },
 
@@ -260,12 +294,34 @@ export const store = {
     byId(id: string): Property | null {
       return db.properties.find((p) => p.id === id) ?? null;
     },
-    create(organizationId: string, name: string, address: string): Property {
-      const property: Property = { id: newId("prop"), organizationId, name, address };
+    /** Find a property by its vendor external id within one organization (TASK-008 sync). */
+    byExternalId(organizationId: string, pmsExternalId: string): Property | null {
+      return (
+        db.properties.find(
+          (p) => p.organizationId === organizationId && p.pmsExternalId === pmsExternalId,
+        ) ?? null
+      );
+    },
+    create(
+      organizationId: string,
+      name: string,
+      address: string,
+      opts: { pmsExternalId?: string | null } = {},
+    ): Property {
+      const property: Property = {
+        id: newId("prop"),
+        organizationId,
+        name,
+        address,
+        pmsExternalId: opts.pmsExternalId ?? null,
+      };
       db.properties.push(property);
       return property;
     },
-    patch(id: string, patch: Partial<Pick<Property, "name" | "address">>): Property | null {
+    patch(
+      id: string,
+      patch: Partial<Pick<Property, "name" | "address" | "pmsExternalId">>,
+    ): Property | null {
       const idx = db.properties.findIndex((p) => p.id === id);
       if (idx === -1) return null;
       db.properties[idx] = { ...db.properties[idx], ...patch };
@@ -289,6 +345,17 @@ export const store = {
     },
     byId(id: string): Unit | null {
       return db.units.find((u) => u.id === id) ?? null;
+    },
+    /** Find a unit by vendor external id within one property (TASK-008 sync). */
+    byExternalId(organizationId: string, propertyId: string, pmsExternalId: string): Unit | null {
+      return (
+        db.units.find(
+          (u) =>
+            u.organizationId === organizationId &&
+            u.propertyId === propertyId &&
+            u.pmsExternalId === pmsExternalId,
+        ) ?? null
+      );
     },
     create(
       organizationId: string,
