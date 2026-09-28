@@ -18,7 +18,6 @@ import {
   Screen,
   TextField,
   theme,
-  Title,
 } from "../ui/components";
 
 const DEV_ACCOUNTS = [
@@ -71,11 +70,27 @@ export function LoginScreen({
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: "center" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-          <LogoMark size={48} />
-          <View style={{ marginLeft: 12 }}>
-            <Title>INSSNAPP</Title>
-          </View>
+        <View
+          style={{
+            backgroundColor: theme.brandNavy,
+            borderRadius: 16,
+            padding: 28,
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <LogoMark size={72} />
+          <Text
+            style={{
+              color: theme.brandWhite,
+              fontSize: 28,
+              fontWeight: "800",
+              letterSpacing: 2,
+              marginTop: 12,
+            }}
+          >
+            INSSNAPP
+          </Text>
         </View>
         <Body>Real-time showing coordination for occupied units.</Body>
         <View style={{ height: 16 }} />
@@ -97,7 +112,7 @@ export function LoginScreen({
             autoCapitalize="none"
           />
           {error ? (
-            <Text style={{ color: theme.danger, marginBottom: 8 }}>{error}</Text>
+            <Text style={{ color: theme.ink, fontWeight: "600", marginBottom: 8 }}>{error}</Text>
           ) : null}
           <Button label={busy ? "Signing in…" : "Sign in"} onPress={() => submit()} disabled={busy} />
         </Card>

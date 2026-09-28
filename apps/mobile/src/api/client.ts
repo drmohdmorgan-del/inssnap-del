@@ -2,10 +2,15 @@
  * HTTP client for the INSSNAPP web backend.
  *
  * Pure TypeScript — no React Native imports — so it is unit-testable with
- * a stubbed fetch. React Native's fetch does not maintain a cookie jar,
- * so the client manages the `inssnapp_session` session value itself:
- * it captures it from the login response's Set-Cookie header and sends
- * it back as a Cookie header on every subsequent request.
+ * a stubbed fetch.
+ *
+ * Auth: the client requests the opaque session credential in the login
+ * response body (`issueToken: true`) and sends it back as
+ * `Authorization: Bearer` on every request — the same signed value the web
+ * session cookie carries, resolved server-side through the identical
+ * verification path. A `Cookie` header with the same value is also sent
+ * for backward compatibility with servers that predate Bearer support.
+ * The credential is persisted by the app in SecureStore, never in logs.
  *
  * Every workflow action here calls a REAL backend route. Network
  * failures surface as status-0 ApiErrors so the UI can show an honest
@@ -112,6 +117,10 @@ export class InssnappClient {
       ...(init.headers as Record<string, string> | undefined),
     };
     if (this.sessionValue) {
+      // Primary credential: Bearer token (supported by current servers).
+      headers["Authorization"] = `Bearer ${this.sessionValue}`;
+      // Backward compatibility: servers that predate Bearer support read
+      // the session cookie. Same opaque value, no security difference.
       headers["Cookie"] = `${SESSION_COOKIE_NAME}=${this.sessionValue}`;
     }
     let res: Response;
@@ -165,6 +174,10 @@ export class InssnappClient {
   /**
    * Step 1 of login. Resolves to an MFA challenge (HTTP 202) for
    * privileged roles, or to the signed-in user otherwise.
+   *
+   * Requests the session credential in the response body (`issueToken`)
+   * for Bearer auth; falls back to the Set-Cookie capture on older
+   * servers.
    */
   async login(
     email: string,
@@ -173,7 +186,7 @@ export class InssnappClient {
     const res = await this.fetchImpl(`${this.baseUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, issueToken: true }),
     }).catch((err) => {
       throw new ApiError(
         0,
@@ -187,9 +200,15 @@ export class InssnappClient {
       mfaRequired?: boolean;
       challengeId?: string;
       user?: SessionUser;
+      token?: string;
       error?: string;
       code?: string;
     } | null;
+    // The body token is authoritative when the server supports it; the
+    // Set-Cookie capture above covers older servers.
+    if (typeof body?.token === "string" && body.token) {
+      this.sessionValue = body.token;
+    }
     if (res.status === 202 && body?.mfaRequired && body.challengeId) {
       return { mfaRequired: true as const, challengeId: body.challengeId };
     }
@@ -202,7 +221,15 @@ export class InssnappClient {
 
   /** Step 2 of login: consume the MFA challenge with a TOTP code. */
   async verifyMfa(challengeId: string, code: string): Promise<{ user: SessionUser }> {
-    return this.post<{ user: SessionUser }>("/api/auth/mfa/verify", { challengeId, code });
+    const res = await this.post<{ user: SessionUser; token?: string }>("/api/auth/mfa/verify", {
+      challengeId,
+      code,
+      issueToken: true,
+    });
+    if (typeof res.token === "string" && res.token) {
+      this.sessionValue = res.token;
+    }
+    return { user: res.user };
   }
 
   async logout(): Promise<void> {

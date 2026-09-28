@@ -21,7 +21,11 @@ import {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { email, password } = body as { email?: string; password?: string };
+  const { email, password, issueToken } = body as {
+    email?: string;
+    password?: string;
+    issueToken?: boolean;
+  };
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
@@ -77,5 +81,5 @@ export async function POST(req: NextRequest) {
     actorEmail: user.email,
     detail: null,
   });
-  return issueSessionResponse(user);
+  return issueSessionResponse(user, { includeToken: issueToken === true });
 }

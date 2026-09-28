@@ -20,7 +20,11 @@ import {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { challengeId, code } = body as { challengeId?: string; code?: string };
+  const { challengeId, code, issueToken } = body as {
+    challengeId?: string;
+    code?: string;
+    issueToken?: boolean;
+  };
   if (!challengeId || !code) {
     return NextResponse.json({ error: "Challenge and code are required." }, { status: 400 });
   }
@@ -63,5 +67,5 @@ export async function POST(req: NextRequest) {
     actorEmail: user.email,
     detail: "mfa",
   });
-  return issueSessionResponse(user);
+  return issueSessionResponse(user, { includeToken: issueToken === true });
 }

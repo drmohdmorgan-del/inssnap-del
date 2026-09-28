@@ -11,7 +11,7 @@
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Linking, View } from "react-native";
 import { InssnappClient } from "./api/client";
 import { resolveApiBaseUrl } from "./api/config";
 import {
@@ -20,11 +20,12 @@ import {
   type SessionStorage,
 } from "./api/session-storage";
 import type { SessionUser } from "./api/types";
-import { BrokerHome } from "./screens/BrokerHome";
+import { parseDeepLink, type DeepLink } from "./nav/tabs";
+import { BrokerTabs } from "./screens/BrokerTabs";
 import { LoginScreen } from "./screens/LoginScreen";
 import { MfaScreen } from "./screens/MfaScreen";
-import { ProspectHome } from "./screens/ProspectHome";
-import { ResidentHome } from "./screens/ResidentHome";
+import { ProspectTabs } from "./screens/ProspectTabs";
+import { ResidentTabs } from "./screens/ResidentTabs";
 import { Body, Button, Card, LoadingView, Muted, Screen, Title, theme } from "./ui/components";
 
 type Boot =
@@ -79,6 +80,25 @@ export default function App() {
   const [storage, setStorage] = useState<SessionStorage | null>(null);
   const [baseUrl] = useState(apiBaseUrl);
   const client = useMemo(() => new InssnappClient({ baseUrl }), [baseUrl]);
+  /**
+   * Deep-link state. A link that arrives while logged out waits in
+   * pendingLink; on a successful login it becomes the initial tab only
+   * when its role matches the signed-in user. Invalid links (unknown
+   * role/tab) are rejected by parseDeepLink and ignored.
+   */
+  const [pendingLink, setPendingLink] = useState<DeepLink | null>(null);
+  const [initialTab, setInitialTab] = useState<string | undefined>(undefined);
+
+  const enterApp = useCallback(
+    (user: SessionUser) => {
+      setPendingLink((pending) => {
+        if (pending && pending.role === user.role) setInitialTab(pending.tab);
+        return null;
+      });
+      setBoot({ stage: "app", user });
+    },
+    [],
+  );
 
   const persistSession = useCallback(
     async (user: SessionUser) => {
@@ -90,9 +110,9 @@ export default function App() {
           /* session stays memory-only — the user is still signed in */
         }
       }
-      setBoot({ stage: "app", user });
+      enterApp(user);
     },
-    [client, storage],
+    [client, storage, enterApp],
   );
 
   const signOut = useCallback(async () => {
@@ -112,6 +132,30 @@ export default function App() {
   }, [client, storage]);
 
   useEffect(() => {
+    const handleUrl = (url: string | null | undefined) => {
+      const link = parseDeepLink(url);
+      if (!link) return;
+      setBoot((b) => {
+        if (b.stage === "app" && b.user.role === link.role) {
+          setInitialTab(link.tab);
+        } else {
+          // Logged out (or wrong role): park the link until a matching
+          // login. Auth is never bypassed — the app still lands on login.
+          setPendingLink(link);
+        }
+        return b;
+      });
+    };
+    Linking.getInitialURL().then(handleUrl).catch(() => {
+      /* no launch URL — normal cold start */
+    });
+    const subscription = Linking.addEventListener("url", (event) => handleUrl(event.url));
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       let store: SessionStorage;
@@ -127,7 +171,7 @@ export default function App() {
         client.setSessionValue(saved);
         try {
           const user = await client.me();
-          if (!cancelled) setBoot({ stage: "app", user });
+          if (!cancelled) enterApp(user);
           return;
         } catch {
           client.clearSession();
@@ -139,7 +183,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [client]);
+  }, [client, enterApp]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -161,13 +205,13 @@ export default function App() {
         />
       )}
       {boot.stage === "app" && boot.user.role === "resident" && (
-        <ResidentHome client={client} user={boot.user} onSignOut={signOut} />
+        <ResidentTabs client={client} user={boot.user} onSignOut={signOut} initialTab={initialTab} />
       )}
       {boot.stage === "app" && boot.user.role === "prospect" && (
-        <ProspectHome client={client} user={boot.user} onSignOut={signOut} />
+        <ProspectTabs client={client} user={boot.user} onSignOut={signOut} initialTab={initialTab} />
       )}
       {boot.stage === "app" && boot.user.role === "broker" && (
-        <BrokerHome client={client} user={boot.user} onSignOut={signOut} />
+        <BrokerTabs client={client} user={boot.user} onSignOut={signOut} initialTab={initialTab} />
       )}
       {boot.stage === "app" &&
         (boot.user.role === "management" || boot.user.role === "inssnapp_admin") && (

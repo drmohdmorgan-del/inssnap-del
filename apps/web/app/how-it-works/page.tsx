@@ -5,6 +5,8 @@
 
 import type { Metadata } from "next";
 import { SiteHeader } from "../../components/marketing/SiteHeader";
+import { BrandMark } from "../../components/brand/BrandMark";
+import { SectionDivider } from "../../components/marketing/SectionDivider";
 import { SiteFooter } from "../../components/marketing/SiteFooter";
 import { Card, CtaBand, SectionHeading } from "../../components/marketing/marketing-ui";
 import { WORKFLOW_STEPS } from "../../components/marketing/marketing-content";
@@ -17,10 +19,13 @@ export const metadata: Metadata = {
 
 export default function HowItWorksPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <SiteHeader />
       <main>
         <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
+          <div className="mb-8 flex justify-center">
+            <BrandMark className="h-16 w-16" />
+          </div>
           <SectionHeading
             eyebrow="How it works"
             title="From management sign up to lease"
@@ -31,21 +36,23 @@ export default function HowItWorksPage() {
             {WORKFLOW_STEPS.map((step, i) => (
               <li
                 key={step.title}
-                className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                className="flex gap-4 rounded-2xl border border-brand-navy-light/15 bg-white p-5 shadow-sm"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-sm font-bold text-white">
                   {i + 1}
                 </span>
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{step.detail}</p>
+                  <h3 className="text-base font-semibold text-brand-navy">{step.title}</h3>
+                  <p className="mt-1 text-sm text-brand-navy-light">{step.detail}</p>
                 </div>
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="bg-white">
+        <SectionDivider />
+
+        <section className="bg-brand-navy-light/5">
           <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
             <SectionHeading
               eyebrow="Engine states"
@@ -93,6 +100,8 @@ export default function HowItWorksPage() {
             </div>
           </div>
         </section>
+
+        <SectionDivider />
 
         <CtaBand
           title="Follow the full workflow live"

@@ -1,6 +1,10 @@
 /**
  * Shared UI primitives for the three role experiences.
  * Dependency-free React Native (View / Text / StyleSheet only).
+ *
+ * Brand palette (strict — no off-palette hex anywhere):
+ *   navy #0A0A2E · deep navy #1B1B52 · violet #7B2FF7 ·
+ *   violet light #9D4EDD · white
  */
 
 import React from "react";
@@ -18,37 +22,22 @@ import type { ShowingState } from "../api/types";
 import { STATE_LABELS } from "../flows/common";
 
 export const theme = {
-  teal: "#0f766e",
-  tealDark: "#115e59",
-  gold: "#b45309",
-  ink: "#0f172a",
-  muted: "#64748b",
-  bg: "#f1f5f9",
-  card: "#ffffff",
-  border: "#e2e8f0",
-  danger: "#dc2626",
-  dangerBg: "#fef2f2",
-  ok: "#047857",
-  okBg: "#ecfdf5",
-  warn: "#b45309",
-  warnBg: "#fffbeb",
+  /* INSSNAPP brand palette — the only colors in the app. */
+  brandNavy: "#0A0A2E",
+  brandNavyLight: "#1B1B52",
+  brandViolet: "#7B2FF7",
+  brandVioletLight: "#9D4EDD",
+  brandWhite: "#FFFFFF",
+  /* Derived (alpha tints of the brand colors only). */
+  bg: "#FFFFFF",
+  ink: "#0A0A2E",
+  muted: "#1B1B52B3",
+  card: "#FFFFFF",
+  border: "#1B1B521F",
+  secondaryBg: "#1B1B5214",
+  badgeBg: "#7B2FF71F",
+  trackOff: "#1B1B5233",
   radius: 12,
-  /* INSSNAPP brand palette — sampled from the official puzzle-piece logo. */
-  brandNavy: "#0a0a2e",
-  brandViolet: "#7b2ff7",
-  brandVioletLight: "#9d4edd",
-  brandWhite: "#ffffff",
-};
-
-const STATE_COLORS: Record<ShowingState, { bg: string; fg: string }> = {
-  AVAILABLE: { bg: "#ecfdf5", fg: "#047857" },
-  REQUESTED: { bg: "#fffbeb", fg: "#b45309" },
-  RESIDENT_ACCEPTED: { bg: "#eff6ff", fg: "#1d4ed8" },
-  BROKER_GATE: { bg: "#f5f3ff", fg: "#6d28d9" },
-  CONFIRMED: { bg: "#eef2ff", fg: "#4338ca" },
-  IN_PROGRESS: { bg: "#ecfeff", fg: "#0e7490" },
-  COMPLETED: { bg: "#f0fdfa", fg: "#0f766e" },
-  OUTCOME: { bg: "#f1f5f9", fg: "#475569" },
 };
 
 export function Screen({ children }: { children: React.ReactNode }) {
@@ -102,11 +91,14 @@ export function Muted({ children }: { children: React.ReactNode }) {
   return <Text style={styles.muted}>{children}</Text>;
 }
 
+/**
+ * State is conveyed by the label text; the badge stays palette-only
+ * (violet tint background, navy text) for every state.
+ */
 export function StateBadge({ state }: { state: ShowingState }) {
-  const c = STATE_COLORS[state];
   return (
-    <View style={[styles.badge, { backgroundColor: c.bg }]}>
-      <Text style={[styles.badgeText, { color: c.fg }]}>{STATE_LABELS[state]}</Text>
+    <View style={[styles.badge, { backgroundColor: theme.badgeBg }]}>
+      <Text style={[styles.badgeText, { color: theme.ink }]}>{STATE_LABELS[state]}</Text>
     </View>
   );
 }
@@ -210,8 +202,8 @@ export function ToggleRow({
         value={value}
         onValueChange={onChange}
         disabled={disabled}
-        trackColor={{ false: "#cbd5e1", true: theme.brandViolet }}
-        thumbColor="#ffffff"
+        trackColor={{ false: theme.trackOff, true: theme.brandViolet }}
+        thumbColor={theme.brandWhite}
       />
     </View>
   );
@@ -305,18 +297,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonPrimary: { backgroundColor: theme.brandViolet },
-  buttonSecondary: { backgroundColor: "#e2e8f0" },
-  buttonDanger: { backgroundColor: theme.dangerBg, borderWidth: 1, borderColor: theme.danger },
+  buttonSecondary: { backgroundColor: theme.secondaryBg },
+  buttonDanger: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: theme.brandNavy,
+  },
   buttonGhost: { backgroundColor: "transparent" },
   buttonDisabled: { opacity: 0.5 },
   buttonPressed: { opacity: 0.85 },
   buttonText: { fontSize: 16, fontWeight: "700", color: theme.ink },
-  buttonTextPrimary: { color: "#ffffff" },
+  buttonTextPrimary: { color: theme.brandWhite },
   buttonTextGhost: { color: theme.brandViolet },
   field: { marginBottom: 12 },
   fieldLabel: { fontSize: 14, fontWeight: "600", color: theme.ink, marginBottom: 6 },
   input: {
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.brandWhite,
     borderWidth: 1,
     borderColor: theme.border,
     borderRadius: 10,
@@ -343,6 +339,6 @@ const styles = StyleSheet.create({
   },
   stars: { flexDirection: "row", justifyContent: "center", marginVertical: 12 },
   star: { padding: 6 },
-  starText: { fontSize: 40, color: "#cbd5e1" },
-  starActive: { color: theme.gold },
+  starText: { fontSize: 40, color: theme.trackOff },
+  starActive: { color: theme.brandViolet },
 });

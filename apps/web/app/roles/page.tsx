@@ -5,6 +5,8 @@
 
 import type { Metadata } from "next";
 import { SiteHeader } from "../../components/marketing/SiteHeader";
+import { BrandMark } from "../../components/brand/BrandMark";
+import { SectionDivider } from "../../components/marketing/SectionDivider";
 import { SiteFooter } from "../../components/marketing/SiteFooter";
 import { Card, CheckList, CtaBand, SectionHeading } from "../../components/marketing/marketing-ui";
 import { MOBILE_NOTE, ROLE_CARDS } from "../../components/marketing/marketing-content";
@@ -17,10 +19,13 @@ export const metadata: Metadata = {
 
 export default function RolesPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <SiteHeader />
       <main>
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <div className="mb-8 flex justify-center">
+            <BrandMark className="h-16 w-16" />
+          </div>
           <SectionHeading
             eyebrow="Roles"
             title="Five roles, five purpose-built experiences"
@@ -34,14 +39,16 @@ export default function RolesPage() {
                     {role.platform}
                   </span>
                 </p>
-                <p className="font-medium text-slate-800">{role.headline}</p>
+                <p className="font-medium text-brand-navy-light">{role.headline}</p>
                 <CheckList items={role.bullets} />
               </Card>
             ))}
           </div>
         </section>
 
-        <section className="bg-white">
+        <SectionDivider />
+
+        <section className="bg-brand-navy-light/5">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <SectionHeading
               eyebrow="Mobile"
@@ -55,6 +62,8 @@ export default function RolesPage() {
             </div>
           </div>
         </section>
+
+        <SectionDivider />
 
         <CtaBand
           title="Which role fits you?"

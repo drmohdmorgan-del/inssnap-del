@@ -19,10 +19,10 @@ export function SectionHeading({
           {eyebrow}
         </p>
       )}
-      <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+      <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-navy sm:text-4xl">
         {title}
       </h2>
-      {intro && <p className="mt-3 text-base text-slate-600">{intro}</p>}
+      {intro && <p className="mt-3 text-base text-brand-navy-light">{intro}</p>}
     </div>
   );
 }
@@ -66,9 +66,9 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-      <div className="mt-2 text-sm text-slate-600">{children}</div>
+    <div className="rounded-2xl border border-brand-navy-light/15 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-brand-navy">{title}</h3>
+      <div className="mt-2 text-sm text-brand-navy-light">{children}</div>
     </div>
   );
 }
@@ -77,9 +77,9 @@ export function CheckList({ items }: { items: string[] }) {
   return (
     <ul className="mt-3 space-y-2">
       {items.map((item) => (
-        <li key={item} className="flex gap-2 text-sm text-slate-600">
+        <li key={item} className="flex gap-2 text-sm text-brand-navy-light">
           <svg viewBox="0 0 20 20" className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true">
-            <circle cx="10" cy="10" r="9" fill="#ede4fd" />
+            <circle cx="10" cy="10" r="9" fill="#7b2ff7" fillOpacity="0.15" />
             <path
               d="M6.5 10.5l2.5 2.5 4.5-5"
               stroke="#7b2ff7"

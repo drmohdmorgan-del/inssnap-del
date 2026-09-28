@@ -1,1 +1,33 @@
-{"expo":{"android":{"adaptiveIcon":{"backgroundColor":"#0f766e","foregroundImage":"./assets/adaptive-icon.png"},"package":"com.inssnapp.mobile"},"extra":{"apiUrl":null},"icon":"./assets/icon.png","ios":{"bundleIdentifier":"com.inssnapp.mobile","supportsTablet":true},"name":"INSSNAPP","orientation":"portrait","plugins":["expo-secure-store"],"slug":"inssnapp","splash":{"backgroundColor":"#0f766e","image":"./assets/splash.png","resizeMode":"contain"},"userInterfaceStyle":"light","version":"0.1.0"}}
+{
+  "expo": {
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a2e",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "package": "com.inssnapp.mobile"
+    },
+    "extra": {
+      "apiUrl": null
+    },
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.inssnapp.mobile",
+      "supportsTablet": true
+    },
+    "name": "INSSNAPP",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "slug": "inssnapp",
+    "splash": {
+      "backgroundColor": "#0a0a2e",
+      "image": "./assets/splash.png",
+      "resizeMode": "contain"
+    },
+    "userInterfaceStyle": "light",
+    "version": "0.1.0",
+    "scheme": "inssnapp"
+  }
+}

@@ -8,7 +8,7 @@ import { Text, View } from "react-native";
 import type { InssnappClient } from "../api/client";
 import { ApiError } from "../api/client";
 import type { SessionUser } from "../api/types";
-import { Button, Card, Muted, Screen, TextField, theme, Title } from "../ui/components";
+import { Button, Card, LogoMark, Muted, Screen, TextField, theme, Title } from "../ui/components";
 
 export function MfaScreen({
   client,
@@ -45,6 +45,28 @@ export function MfaScreen({
   return (
     <Screen>
       <View style={{ flex: 1, justifyContent: "center" }}>
+        <View
+          style={{
+            backgroundColor: theme.brandNavy,
+            borderRadius: 16,
+            padding: 24,
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <LogoMark size={56} />
+          <Text
+            style={{
+              color: theme.brandWhite,
+              fontSize: 22,
+              fontWeight: "800",
+              letterSpacing: 2,
+              marginTop: 10,
+            }}
+          >
+            INSSNAPP
+          </Text>
+        </View>
         <Title>Two-step verification</Title>
         <Muted>Your account requires a second step. Enter the code from your authenticator app.</Muted>
         <View style={{ height: 16 }} />
@@ -58,7 +80,9 @@ export function MfaScreen({
             autoCapitalize="none"
             maxLength={8}
           />
-          {error ? <Text style={{ color: theme.danger, marginBottom: 8 }}>{error}</Text> : null}
+          {error ? (
+            <Text style={{ color: theme.ink, fontWeight: "600", marginBottom: 8 }}>{error}</Text>
+          ) : null}
           <Button label={busy ? "Verifying…" : "Verify"} onPress={submit} disabled={busy} />
           <Button label="Back to sign-in" kind="ghost" onPress={onCancel} disabled={busy} />
         </Card>

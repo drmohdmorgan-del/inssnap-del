@@ -10,6 +10,7 @@ import { SiteHeader } from "../components/marketing/SiteHeader";
 import { BrandMark } from "../components/brand/BrandMark";
 import { SiteFooter } from "../components/marketing/SiteFooter";
 import { Card, CheckList, CtaBand, SectionHeading } from "../components/marketing/marketing-ui";
+import { SectionDivider } from "../components/marketing/SectionDivider";
 import {
   MOBILE_NOTE,
   ROLE_CARDS,
@@ -26,7 +27,7 @@ const WORKFLOW_PREVIEW = WORKFLOW_STEPS.slice(0, 5);
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <SiteHeader />
 
       <main>
@@ -34,13 +35,14 @@ export default function HomePage() {
         <section className="bg-gradient-to-br from-brand-navy/5 via-white to-brand-violet/10">
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-brand-violet/30 bg-white px-3 py-1 text-xs font-semibold text-brand-violet">
+              <BrandMark className="h-16 w-16" />
+              <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-violet/30 bg-white px-3 py-1 text-xs font-semibold text-brand-violet">
                 In development — preparing for pilot
               </p>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-brand-navy sm:text-5xl">
                 Resident-Powered Leasing Infrastructure
               </h1>
-              <p className="mt-4 text-lg text-slate-600">
+              <p className="mt-4 text-lg text-brand-navy-light">
                 The Missing Tile™ in real-time occupied-unit showing
                 coordination. INSSNAPP coordinates resident availability,
                 prospect requests, optional broker participation, and showing
@@ -55,21 +57,21 @@ export default function HomePage() {
                 </a>
                 <a
                   href="/how-it-works"
-                  className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-xl border border-brand-navy-light/25 bg-white px-6 py-3 text-sm font-semibold text-brand-navy-light transition hover:bg-brand-navy-light/10"
                 >
                   See how it works
                 </a>
               </div>
             </div>
             <div className="hidden lg:block">
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+              <div className="rounded-3xl border border-brand-navy-light/15 bg-white p-8 shadow-xl">
                 <div className="mb-4 flex items-center gap-3">
                   <BrandMark className="h-10 w-10" />
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-brand-navy">
                     End-to-end workflow
                   </p>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-brand-navy-light/60">
                   From management sign up to lease — management owns the
                   platform, the leads, and the prospects.
                 </p>
@@ -80,8 +82,8 @@ export default function HomePage() {
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{step.title}</p>
-                        <p className="text-xs text-slate-500">{step.detail}</p>
+                        <p className="text-sm font-semibold text-brand-navy">{step.title}</p>
+                        <p className="text-xs text-brand-navy-light/60">{step.detail}</p>
                       </div>
                     </li>
                   ))}
@@ -97,6 +99,8 @@ export default function HomePage() {
           </div>
         </section>
 
+        <SectionDivider />
+
         {/* Roles */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <SectionHeading
@@ -107,7 +111,7 @@ export default function HomePage() {
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {ROLE_CARDS.map((role) => (
               <Card key={role.role} title={`${role.role} · ${role.platform}`}>
-                <p className="font-medium text-slate-800">{role.headline}</p>
+                <p className="font-medium text-brand-navy-light">{role.headline}</p>
                 <CheckList items={role.bullets.slice(0, 3)} />
               </Card>
             ))}
@@ -119,8 +123,10 @@ export default function HomePage() {
           </p>
         </section>
 
+        <SectionDivider />
+
         {/* Mobile */}
-        <section className="bg-white">
+        <section className="bg-brand-navy-light/5">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
             <SectionHeading
               eyebrow="Mobile"
@@ -143,6 +149,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        <SectionDivider />
 
         {/* Services teaser */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -175,6 +183,8 @@ export default function HomePage() {
             </a>
           </p>
         </section>
+
+        <SectionDivider />
 
         <CtaBand
           title="Coordinating occupied-unit showings?"

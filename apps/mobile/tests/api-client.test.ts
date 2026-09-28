@@ -71,6 +71,17 @@ describe("InssnappClient auth", () => {
     await client.listShowings();
     const headers = calls[1].init?.headers as Record<string, string>;
     expect(headers["Cookie"]).toBe("inssnapp_session=tok_abc123");
+    expect(headers["Authorization"]).toBe("Bearer tok_abc123");
+  });
+
+  it("prefers the body token for Bearer auth when the server returns one", async () => {
+    const f = stubFetch(() =>
+      stubResponse({ body: { user: USER, token: "tok_body456" } }),
+    );
+    const client = new InssnappClient({ baseUrl: "http://localhost:3000", fetchImpl: f });
+    const result = await client.login("resident@inssnapp.demo", "pw");
+    expect("user" in result && result.user.email).toBe("resident@inssnapp.demo");
+    expect(client.getSessionValue()).toBe("tok_body456");
   });
 
   it("returns the MFA challenge on HTTP 202 without a session", async () => {
@@ -93,7 +104,7 @@ describe("InssnappClient auth", () => {
     const client = new InssnappClient({ baseUrl: "http://x:3000", fetchImpl: f });
     const { user } = await client.verifyMfa("ch_1", "123456");
     expect(user.role).toBe("inssnapp_admin");
-    expect(seen[0]).toEqual({ challengeId: "ch_1", code: "123456" });
+    expect(seen[0]).toEqual({ challengeId: "ch_1", code: "123456", issueToken: true });
     expect(client.authenticated).toBe(true);
   });
 
