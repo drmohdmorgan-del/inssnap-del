@@ -11,6 +11,12 @@ import { verifyMfaToken } from "@inssnapp/auth";
 import { getAuthStore } from "../../../../../lib/auth-store";
 import { issueSessionResponse } from "../../../../../lib/auth-helpers";
 import { db } from "../../../../../lib/db";
+import {
+  checkRateLimit,
+  clientIp,
+  rateLimitExceeded,
+  rateLimitPresets,
+} from "../../../../../lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -18,6 +24,12 @@ export async function POST(req: NextRequest) {
   if (!challengeId || !code) {
     return NextResponse.json({ error: "Challenge and code are required." }, { status: 400 });
   }
+
+  // TASK-010: per-IP throttle on MFA code attempts (defense in depth —
+  // challenges are single-use, but this caps guessing velocity).
+  const limits = rateLimitPresets();
+  const ipCheck = checkRateLimit(`mfa:ip:${clientIp(req)}`, limits.mfaPerIp);
+  if (!ipCheck.allowed) return rateLimitExceeded(ipCheck.retryAfterSeconds);
 
   const store = getAuthStore();
   const challenge = await store.consumeMfaChallenge(challengeId);

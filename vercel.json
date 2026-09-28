@@ -1,6 +1,1 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next"
-}
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"npm run build","crons":[{"path":"/api/cron/reminders","schedule":"0 9 * * *"}],"framework":"nextjs","outputDirectory":".next"}

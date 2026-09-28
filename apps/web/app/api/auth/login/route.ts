@@ -12,6 +12,12 @@ import { verifyPassword, newMfaChallengeId, MFA_CHALLENGE_TTL_MS } from "@inssna
 import { getAuthStore } from "../../../../lib/auth-store";
 import { issueSessionResponse } from "../../../../lib/auth-helpers";
 import { db } from "../../../../lib/db";
+import {
+  checkRateLimit,
+  clientIp,
+  rateLimitExceeded,
+  rateLimitPresets,
+} from "../../../../lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -19,6 +25,17 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
+
+  // TASK-010: rate limit BEFORE password verification — per account (so one
+  // attacker's guesses don't lock out other users) and per IP (so one IP
+  // can't sweep many accounts).
+  const limits = rateLimitPresets();
+  const accountKey = `login:acct:${email.trim().toLowerCase()}`;
+  const accountCheck = checkRateLimit(accountKey, limits.loginPerAccount);
+  if (!accountCheck.allowed) return rateLimitExceeded(accountCheck.retryAfterSeconds);
+  const ipKey = `login:ip:${clientIp(req)}`;
+  const ipCheck = checkRateLimit(ipKey, limits.loginPerIp);
+  if (!ipCheck.allowed) return rateLimitExceeded(ipCheck.retryAfterSeconds);
 
   const store = getAuthStore();
   // Login-only cross-org lookup; the organization is resolved from the

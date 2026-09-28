@@ -17,6 +17,11 @@ import { getAuthStore } from "./auth-store";
 import { engine } from "./engine";
 import { db } from "./db";
 import { notifyShowingTransition } from "./notifications";
+import {
+  checkRateLimit,
+  rateLimitExceeded,
+  rateLimitPresets,
+} from "./rate-limit";
 
 /** Maps engine result codes to HTTP statuses. */
 export function transitionStatus(code: string): number {
@@ -85,6 +90,12 @@ export async function runShowingTransition(
   const { user } = loaded.ctx;
 
   if (!opts.roles.includes(user.role)) return forbidden();
+
+  // TASK-010: per-user throttle on showing mutations (abuse protection;
+  // legitimate polling uses the GET routes, which are not throttled).
+  const limits = rateLimitPresets();
+  const rl = checkRateLimit(`showing:${user.userId}`, limits.showingWritePerUser);
+  if (!rl.allowed) return rateLimitExceeded(rl.retryAfterSeconds);
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   let outcome: ShowingOutcome | undefined;

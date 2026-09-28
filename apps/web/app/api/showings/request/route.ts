@@ -4,6 +4,11 @@ import { engine } from "../../../../lib/engine";
 import { db } from "../../../../lib/db";
 import { notifyShowingTransition } from "../../../../lib/notifications";
 import { transitionStatus } from "../../../../lib/showing-api";
+import {
+  checkRateLimit,
+  rateLimitExceeded,
+  rateLimitPresets,
+} from "../../../../lib/rate-limit";
 
 /**
  * Prospect creates a showing request for a unit — TASK-003.
@@ -19,6 +24,11 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return unauthorized();
   if (user.role !== "prospect") return forbidden();
+
+  // TASK-010: per-user throttle on showing creation.
+  const limits = rateLimitPresets();
+  const rl = checkRateLimit(`showing:${user.userId}`, limits.showingWritePerUser);
+  if (!rl.allowed) return rateLimitExceeded(rl.retryAfterSeconds);
 
   const body = (await req.json().catch(() => ({}))) as {
     unitId?: string;
@@ -54,7 +64,8 @@ export async function POST(req: NextRequest) {
       : crypto.randomUUID();
 
   // Idempotent retry: the key already produced a request — replay it.
-  const prior = await db.showingEvents.findByIdempotencyKey(idempotencyKey);
+  // TASK-010: the lookup is scoped to the caller's organization.
+  const prior = await db.showingEvents.findByIdempotencyKey(idempotencyKey, user.organizationId);
   if (prior) {
     const showing = await db.showings.get(prior.showingId);
     if (showing && showing.organizationId === user.organizationId) {
@@ -72,11 +83,26 @@ export async function POST(req: NextRequest) {
   // Replays the result recorded under our idempotency key — the winner of a
   // concurrent duplicate create — when it is visible in our organization.
   const replayWinner = async () => {
-    const winner = await db.showingEvents.findByIdempotencyKey(idempotencyKey);
+    const winner = await db.showingEvents.findByIdempotencyKey(idempotencyKey, user.organizationId);
     if (!winner) return null;
     const winnerShowing = await db.showings.get(winner.showingId);
     if (!winnerShowing || winnerShowing.organizationId !== user.organizationId) return null;
     return NextResponse.json({ showing: winnerShowing, event: winner, replayed: true });
+  };
+
+  // Removes our just-created showing when it is an eventless orphan — the
+  // concurrent duplicate-create loser path. Safe: a showing with no audit
+  // events was never part of any workflow (its id was just minted and is
+  // unguessable). Returns true when the showing was removed.
+  const removeOrphanIfEventless = async (): Promise<boolean> => {
+    const hasEvents = (await db.showingEvents.list(user.organizationId)).some(
+      (e: { showingId: string }) => e.showingId === showing.id,
+    );
+    if (!hasEvents) {
+      await db.showings.remove(showing.id);
+      return true;
+    }
+    return false;
   };
 
   let result: Awaited<ReturnType<typeof engine.transition>>;
@@ -90,10 +116,13 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // True-concurrency race: two requests with the same key both passed the
     // precheck above; the loser's event INSERT hit the
-    // UNIQUE (organization_id, idempotency_key) constraint. Replay the winner.
+    // UNIQUE (organization_id, idempotency_key) constraint. Drop our orphan
+    // and replay the winner.
     if ((err as { code?: string })?.code === "23505") {
-      const replayed = await replayWinner();
-      if (replayed) return replayed;
+      if (await removeOrphanIfEventless()) {
+        const replayed = await replayWinner();
+        if (replayed) return replayed;
+      }
     }
     throw err;
   }
@@ -102,12 +131,10 @@ export async function POST(req: NextRequest) {
     // Concurrent duplicate create: the engine saw our reused key (written by
     // the winner) before inserting any event, so our showing is an orphan
     // with no audit trail to preserve — remove it and replay the winner, so
-    // concurrent retries stay perfectly idempotent.
-    const hasEvents = (await db.showingEvents.list(user.organizationId)).some(
-      (e: { showingId: string }) => e.showingId === showing.id,
-    );
-    if (!hasEvents) {
-      await db.showings.remove(showing.id);
+    // concurrent retries stay perfectly idempotent. If our showing DOES have
+    // events, the key was genuinely reused for a different operation and the
+    // 400 below stands.
+    if (await removeOrphanIfEventless()) {
       const replayed = await replayWinner();
       if (replayed) return replayed;
     }

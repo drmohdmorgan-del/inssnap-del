@@ -93,6 +93,46 @@ function eventSummary(
 }
 
 /**
+ * Sends the showing.reminder notification for one CONFIRMED showing
+ * (TASK-010 cron). Fail-open like all notification dispatch: a provider
+ * failure is logged and never breaks the caller. Never throws.
+ */
+export async function notifyShowingReminder(showing: Showing): Promise<void> {
+  const recipientRoles = EVENT_RECIPIENT_ROLES["showing.reminder"];
+  const recipients: NotificationRecipient[] = [];
+  for (const role of recipientRoles) {
+    const r = await resolveRecipient(role, showing);
+    if (r) recipients.push(r);
+  }
+
+  let unitLabel: string | null = null;
+  let propertyName: string | null = null;
+  try {
+    const unit = await db.units.byId(showing.unitId);
+    unitLabel = unit?.label ?? null;
+    if (unit) {
+      const property = await db.properties.byId(unit.propertyId);
+      propertyName = property?.name ?? null;
+    }
+  } catch {
+    // Enrichment is best-effort; the summary degrades gracefully.
+  }
+
+  const payload: NotificationPayload = {
+    event: "showing.reminder",
+    organizationId: showing.organizationId,
+    at: new Date().toISOString(),
+    showingId: showing.id,
+    unitLabel,
+    propertyName,
+    actorRole: "system",
+    recipients,
+    summary: `Reminder: your showing${unitLabel ? ` for unit ${unitLabel}` : ""} is confirmed.`,
+  };
+  await notifySafely(payload);
+}
+
+/**
  * Fires the notification for a completed showing transition. Never throws —
  * safe to call after the engine has committed the transition. Idempotent
  * replays must NOT notify (callers skip when result.replayed is true).

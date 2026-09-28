@@ -952,6 +952,39 @@ export const db = {
         [id, updated.state, updated.outcome, updated.prospectUserId, updated.brokerUserId, updated.version],
       );
     },
+
+    /**
+     * CONFIRMED showings whose last state change is older than
+     * `cutoffIso` and that have not received a reminder yet — the
+     * /api/cron/reminders candidate set (TASK-010). Cross-org by design:
+     * the cron is a system job, not a user request.
+     */
+    async listConfirmedStale(cutoffIso: string) {
+      if (!usingPostgres) {
+        return mem.showings
+          .listAll()
+          .filter(
+            (s) =>
+              s.state === "CONFIRMED" &&
+              s.updatedAt < cutoffIso &&
+              !mem.reminders.sent(s.id),
+          );
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT s.id, s.organization_id AS "organizationId", s.unit_id AS "unitId",
+                s.resident_user_id AS "residentUserId", s.prospect_user_id AS "prospectUserId",
+                s.broker_user_id AS "brokerUserId", s.broker_required AS "brokerRequired",
+                s.state, s.outcome, s.version,
+                s.created_at AS "createdAt", s.updated_at AS "updatedAt"
+         FROM showings s
+         WHERE s.state = 'CONFIRMED'
+           AND s.updated_at < $1
+           AND NOT EXISTS (SELECT 1 FROM reminder_sends r WHERE r.showing_id = s.id)`,
+        [cutoffIso],
+      );
+      return res.rows;
+    },
   },
 
   showingEvents: {
@@ -982,16 +1015,16 @@ export const db = {
       return res.rows;
     },
 
-    async findByIdempotencyKey(key: string) {
-      if (!usingPostgres) return mem.showingEvents.findByIdempotencyKey(key);
+    async findByIdempotencyKey(key: string, organizationId: string) {
+      if (!usingPostgres) return mem.showingEvents.findByIdempotencyKey(key, organizationId);
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, showing_id AS "showingId", organization_id AS "organizationId",
                 actor_user_id AS "actorUserId", actor_role AS "actorRole",
                 transition, from_state AS "fromState", to_state AS "toState",
                 idempotency_key AS "idempotencyKey", at
-         FROM showing_events WHERE idempotency_key = $1 LIMIT 1`,
-        [key],
+         FROM showing_events WHERE idempotency_key = $1 AND organization_id = $2 LIMIT 1`,
+        [key, organizationId],
       );
       return res.rows[0] ?? null;
     },
@@ -1059,6 +1092,28 @@ export const db = {
         params,
       );
       return res.rows;
+    },
+  },
+
+  /**
+   * Reminder-send ledger (TASK-010 cron): one reminder per showing, ever.
+   */
+  reminders: {
+    async sent(showingId: string) {
+      if (!usingPostgres) return mem.reminders.sent(showingId);
+      const pool = await getPool();
+      const res = await pool.query(`SELECT 1 FROM reminder_sends WHERE showing_id = $1`, [
+        showingId,
+      ]);
+      return res.rows.length > 0;
+    },
+    async markSent(showingId: string) {
+      if (!usingPostgres) return mem.reminders.markSent(showingId);
+      const pool = await getPool();
+      await pool.query(
+        `INSERT INTO reminder_sends (showing_id) VALUES ($1) ON CONFLICT (showing_id) DO NOTHING`,
+        [showingId],
+      );
     },
   },
 };

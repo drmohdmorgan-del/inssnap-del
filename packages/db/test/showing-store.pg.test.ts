@@ -317,4 +317,162 @@ describePg("PostgresStore + ShowingEngine (TASK-003)", () => {
     if (!res.ok) expect(res.code).toBe("CONCURRENCY_CONFLICT");
     expect(await store.getUnitLock(unitA)).toBeNull();
   });
+
+  it("TASK-010: 5 concurrent transitions with the same idempotency key produce exactly one audit event", async () => {
+    // Five independent showings (one per concurrent caller), one shared key —
+    // the mirror of the TASK-003 curl-verified create race, now automated
+    // against real Postgres.
+    const ids = await Promise.all(
+      Array.from({ length: 5 }, () => createShowing(unitA, residentA, orgA)),
+    );
+    const key = `t10-pg-race-${Date.now()}`;
+    const results = await Promise.allSettled(
+      ids.map((sid) =>
+        engine.transition({
+          showingId: sid,
+          transition: "PROSPECT_REQUEST",
+          actor: actor("prospect", orgA, prospectA),
+          idempotencyKey: key,
+        }),
+      ),
+    );
+
+    // Exactly one caller wins; every loser either hit the 23505 unique
+    // violation or saw the winner's event (VALIDATION "already used").
+    let winners = 0;
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value.ok && !r.value.replayed) {
+        winners += 1;
+      } else if (r.status === "fulfilled" && !r.value.ok) {
+        expect(r.value.code).toBe("VALIDATION");
+      } else {
+        expect(r.status).toBe("rejected");
+        expect((r as PromiseRejectedResult).reason?.code).toBe("23505");
+      }
+    }
+    expect(winners).toBe(1);
+
+    const count = (
+      await pool.query(
+        `SELECT count(*)::int AS n FROM showing_events WHERE idempotency_key = $1`,
+        [key],
+      )
+    ).rows[0].n;
+    expect(count).toBe(1);
+  });
+
+  it("TASK-010: idempotency keys are namespaced per organization", async () => {
+    // The same key string in two orgs must not collide (UNIQUE
+    // (organization_id, idempotency_key)).
+    const key = `t10-pg-orgscope-${Date.now()}`;
+    const idA = await createShowing(unitA, residentA, orgA);
+    // orgB needs its own property/unit/resident/prospect for a legal transition.
+    const propB = (
+      await pool.query(
+        `INSERT INTO properties (organization_id, name, address) VALUES ($1, 'T10 B', '2 Test Way') RETURNING id`,
+        [orgB],
+      )
+    ).rows[0].id;
+    const unitBId = (
+      await pool.query(
+        `INSERT INTO units (organization_id, property_id, label, eligible, resident_available)
+         VALUES ($1, $2, 'T10-B', true, true) RETURNING id`,
+        [orgB, propB],
+      )
+    ).rows[0].id;
+    const residentB = (
+      await pool.query(
+        `INSERT INTO users (organization_id, email, full_name, password_hash, role)
+         VALUES ($1, $2, 'B Resident', 'x', 'resident') RETURNING id`,
+        [orgB, `${Date.now()}-bres@t10.test`],
+      )
+    ).rows[0].id;
+    const prospectB = (
+      await pool.query(
+        `INSERT INTO users (organization_id, email, full_name, password_hash, role)
+         VALUES ($1, $2, 'B Prospect', 'x', 'prospect') RETURNING id`,
+        [orgB, `${Date.now()}-bpro@t10.test`],
+      )
+    ).rows[0].id;
+    const idB = await createShowing(unitBId, residentB, orgB);
+
+    const rA = await transition(idA, "PROSPECT_REQUEST", actor("prospect", orgA, prospectA), key);
+    const rB = await transition(idB, "PROSPECT_REQUEST", actor("prospect", orgB, prospectB), key);
+    expect(rA.ok).toBe(true);
+    expect(rB.ok).toBe(true);
+
+    const rows = (
+      await pool.query(
+        `SELECT organization_id AS "organizationId" FROM showing_events WHERE idempotency_key = $1 ORDER BY 1`,
+        [key],
+      )
+    ).rows;
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r: { organizationId: string }) => r.organizationId))).toEqual(
+      new Set([orgA, orgB]),
+    );
+
+    // And a cross-org replay attempt cannot see orgA's key: with a key that
+    // exists only in orgA, the org-scoped lookup misses and tenant
+    // isolation rejects the showing (no existence information leaks).
+    const soloKey = `t10-pg-orgsolo-${Date.now()}`;
+    const soloId = await createShowing(unitA, residentA, orgA);
+    const solo = await transition(soloId, "PROSPECT_REQUEST", actor("prospect", orgA, prospectA), soloKey);
+    expect(solo.ok).toBe(true);
+    const cross = await engine.transition({
+      showingId: soloId,
+      transition: "PROSPECT_REQUEST",
+      actor: actor("prospect", orgB, prospectB),
+      idempotencyKey: soloKey,
+    });
+    expect(cross.ok).toBe(false);
+    if (!cross.ok) expect(cross.code).toBe("TENANT_ISOLATION");
+  });
+
+  it("TASK-010: commitAndAudit is atomic — a duplicate key rolls back the state change", async () => {
+    const id = await createShowing(unitA, residentA, orgA);
+    const key = `t10-pg-atomic-${Date.now()}`;
+    const first = await store.commitAndAudit({
+      id,
+      expectedVersion: 0,
+      patch: { state: "REQUESTED" },
+      event: {
+        showingId: id,
+        organizationId: orgA,
+        actorUserId: prospectA,
+        actorRole: "prospect",
+        transition: "PROSPECT_REQUEST",
+        fromState: "AVAILABLE",
+        toState: "REQUESTED",
+        idempotencyKey: key,
+      },
+    });
+    expect(first).not.toBeNull();
+
+    const before = await store.getShowing(id);
+    // Same (org, key) again: the INSERT violates the unique constraint and
+    // the whole transaction — including the state UPDATE — rolls back.
+    await expect(
+      store.commitAndAudit({
+        id,
+        expectedVersion: before!.version,
+        patch: { state: "RESIDENT_ACCEPTED" },
+        event: {
+          showingId: id,
+          organizationId: orgA,
+          actorUserId: residentA,
+          actorRole: "resident",
+          transition: "RESIDENT_ACCEPT",
+          fromState: "REQUESTED",
+          toState: "RESIDENT_ACCEPTED",
+          idempotencyKey: key,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "23505" });
+
+    const after = await store.getShowing(id);
+    expect(after!.version).toBe(before!.version);
+    expect(after!.state).toBe(before!.state);
+    expect(await eventCount(id)).toBe(1);
+  });
 });

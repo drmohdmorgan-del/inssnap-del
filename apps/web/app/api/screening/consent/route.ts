@@ -47,6 +47,14 @@ export async function POST(req: NextRequest) {
   }
 
   const scopeText = body.scopeText?.trim() || DEFAULT_CONSENT_SCOPE_TEXT;
+  // TASK-010: cap free-text length — the consent text is rendered in the
+  // Control Center and stored verbatim.
+  if (scopeText.length > 2000) {
+    return NextResponse.json(
+      { error: "scopeText must be at most 2000 characters." },
+      { status: 400 },
+    );
+  }
 
   const consent = await getScreeningService().recordConsent({
     organizationId: user.organizationId,

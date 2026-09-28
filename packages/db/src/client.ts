@@ -294,15 +294,86 @@ export class PostgresStore implements AuthStore {
     return res.rows[0] ?? null;
   }
 
-  async getIdempotent(key: string): Promise<ShowingEvent | null> {
+  /**
+   * TASK-010: atomic state-commit + audit-event insert in a single
+   * transaction. Returns null when the optimistic version check fails
+   * (the transaction is rolled back). A duplicate idempotency key
+   * aborts the transaction with the 23505 unique-violation error, which
+   * the engine propagates so the route layer can replay the winner.
+   */
+  async commitAndAudit(args: {
+    id: string;
+    expectedVersion: number;
+    patch: Partial<Pick<Showing, "state" | "outcome" | "prospectUserId" | "brokerUserId">>;
+    event: Omit<ShowingEvent, "id" | "at">;
+  }): Promise<{ showing: Showing; event: ShowingEvent } | null> {
+    const pool = await this.pool_();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const upd = await client.query(
+        `UPDATE showings
+         SET state = COALESCE($3, state),
+             outcome = COALESCE($4, outcome),
+             prospect_user_id = COALESCE($5, prospect_user_id),
+             broker_user_id = COALESCE($6, broker_user_id),
+             version = version + 1,
+             updated_at = now()
+         WHERE id = $1 AND version = $2
+         RETURNING id, organization_id AS "organizationId", unit_id AS "unitId",
+                   resident_user_id AS "residentUserId", prospect_user_id AS "prospectUserId",
+                   broker_user_id AS "brokerUserId", broker_required AS "brokerRequired",
+                   state, outcome, version, created_at AS "createdAt", updated_at AS "updatedAt"`,
+        [
+          args.id,
+          args.expectedVersion,
+          args.patch.state ?? null,
+          args.patch.outcome ?? null,
+          args.patch.prospectUserId ?? null,
+          args.patch.brokerUserId ?? null,
+        ],
+      );
+      if (upd.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      const e = args.event;
+      const ins = await client.query(
+        `INSERT INTO showing_events
+           (organization_id, showing_id, actor_user_id, actor_role, transition, from_state, to_state, idempotency_key)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING id, at`,
+        [e.organizationId, e.showingId, e.actorUserId, e.actorRole, e.transition, e.fromState, e.toState, e.idempotencyKey],
+      );
+      await client.query("COMMIT");
+      const showing = upd.rows[0] as Showing;
+      const event: ShowingEvent = { ...e, id: ins.rows[0].id, at: ins.rows[0].at };
+      return { showing, event };
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Rollback best-effort; the original error is what matters.
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * TASK-010: idempotency lookups are organization-scoped, matching the
+   * UNIQUE (organization_id, idempotency_key) constraint.
+   */
+  async getIdempotent(key: string, organizationId: string): Promise<ShowingEvent | null> {
     const pool = await this.pool_();
     const res = await pool.query(
       `SELECT id, showing_id AS "showingId", organization_id AS "organizationId",
               actor_user_id AS "actorUserId", actor_role AS "actorRole",
               transition, from_state AS "fromState", to_state AS "toState",
               idempotency_key AS "idempotencyKey", at
-       FROM showing_events WHERE idempotency_key = $1 LIMIT 1`,
-      [key],
+       FROM showing_events WHERE idempotency_key = $1 AND organization_id = $2 LIMIT 1`,
+      [key, organizationId],
     );
     return res.rows[0] ?? null;
   }

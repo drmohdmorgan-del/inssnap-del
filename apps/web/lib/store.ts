@@ -157,6 +157,8 @@ interface StoreData {
   showings: Map<string, Showing>;
   events: ShowingEvent[];
   ratings: ShowingRating[];
+  /** Showing ids that already received a reminder (TASK-010 cron). */
+  reminderSends: Set<string>;
   sessions: Map<string, { tokenHash: string; userId: string; organizationId: string; expiresAt: number }>;
   seq: number;
 }
@@ -215,14 +217,93 @@ function seed(): StoreData {
     showings: new Map(),
     events: [],
     ratings: [],
+    reminderSends: new Set(),
     sessions: new Map(),
     seq: 100,
   };
 }
 
+/**
+ * Production seed — TASK-010 hardening.
+ *
+ * Demo credentials are publicly documented (password "pw", fixed demo TOTP
+ * secret in ./demo.ts), so they must never exist on a production instance.
+ * This seeds NO demo users/orgs/data. Instead, a single bootstrap
+ * administrator is created when ALL of these are set:
+ *   INSSNAPP_BOOTSTRAP_ADMIN_EMAIL        — admin email
+ *   INSSNAPP_BOOTSTRAP_ADMIN_PASSWORD_HASH — argon2id hash of the password
+ *     (generate locally; the plaintext password must never be stored here)
+ *   INSSNAPP_BOOTSTRAP_ADMIN_TOTP_SECRET — base32 TOTP secret, enrolled in
+ *     an authenticator app before first login
+ * When any is missing, zero users exist and nobody can log in — fail
+ * closed. Real user management belongs on PostgreSQL (TASK-002); the
+ * in-memory store is a dev fallback.
+ */
+function seedProduction(): StoreData {
+  const data: StoreData = {
+    orgs: [],
+    users: [],
+    properties: [],
+    units: [],
+    residents: [],
+    pmsAdapters: [],
+    securityEvents: [],
+    screeningConsents: [],
+    screeningReports: [],
+    screeningLegalApprovals: [],
+    showings: new Map(),
+    events: [],
+    ratings: [],
+    reminderSends: new Set(),
+    sessions: new Map(),
+    seq: 100,
+  };
+
+  const email = process.env.INSSNAPP_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const passwordHash = process.env.INSSNAPP_BOOTSTRAP_ADMIN_PASSWORD_HASH?.trim();
+  const totpSecret = process.env.INSSNAPP_BOOTSTRAP_ADMIN_TOTP_SECRET?.trim();
+  if (!email || !passwordHash || !totpSecret) {
+    console.warn(
+      "[inssnapp] production: INSSNAPP_BOOTSTRAP_ADMIN_{EMAIL,PASSWORD_HASH,TOTP_SECRET} " +
+        "not all set — no users seeded; login is disabled until they are.",
+    );
+    return data;
+  }
+  if (!passwordHash.startsWith("$argon2id$")) {
+    console.warn(
+      "[inssnapp] production: INSSNAPP_BOOTSTRAP_ADMIN_PASSWORD_HASH is not an " +
+        "argon2id hash — refusing to seed the bootstrap admin.",
+    );
+    return data;
+  }
+
+  const org: Org = { id: "org_bootstrap", name: "Pilot Organization" };
+  data.orgs.push(org);
+  data.users.push({
+    id: "u_bootstrap_admin",
+    organizationId: org.id,
+    email,
+    fullName: "Bootstrap Admin",
+    passwordHash,
+    role: "inssnapp_admin",
+    mfaEnabled: true,
+    mfaSecret: totpSecret,
+  });
+  console.warn(
+    `[inssnapp] production: seeded bootstrap admin ${email} (MFA required). ` +
+      "Rotate to PostgreSQL-backed user management before the pilot.",
+  );
+  return data;
+}
+
 const g = globalThis as typeof globalThis & { __inssnappStore?: StoreData };
 if (!g.__inssnappStore) {
-  g.__inssnappStore = seed();
+  // TASK-010 hardening: the well-known demo accounts (public password
+  // "pw", public demo TOTP secret) are NEVER seeded in production — no
+  // override. A single bootstrap administrator is created from environment
+  // variables instead (all three required, or no users exist at all).
+  g.__inssnappStore =
+    process.env.NODE_ENV === "production" ? seedProduction() : seed();
 }
 const db = g.__inssnappStore;
 
@@ -544,6 +625,10 @@ export const store = {
     list(organizationId: string): Showing[] {
       return [...db.showings.values()].filter((s) => s.organizationId === organizationId);
     },
+    /** All showings, every org — for system jobs (the reminder cron), not user requests. */
+    listAll(): Showing[] {
+      return [...db.showings.values()];
+    },
     remove(id: string): void {
       db.showings.delete(id);
     },
@@ -562,6 +647,21 @@ export const store = {
 
   showingEvents: {
     insert(e: Omit<ShowingEvent, "id" | "at">): ShowingEvent {
+      // Mirror the Postgres UNIQUE (organization_id, idempotency_key)
+      // constraint so the in-memory path has identical idempotency
+      // semantics under concurrency (TASK-010). The duplicate throws a
+      // 23505-like error that the /api/showings/request race-replay logic
+      // already handles.
+      const dup = db.events.some(
+        (x) => x.organizationId === e.organizationId && x.idempotencyKey === e.idempotencyKey,
+      );
+      if (dup) {
+        const err = new Error(
+          'duplicate key value violates unique constraint "showing_events_organization_id_idempotency_key_key"',
+        ) as Error & { code: string };
+        err.code = "23505";
+        throw err;
+      }
       const event: ShowingEvent = { ...e, id: newId("evt"), at: new Date().toISOString() };
       db.events.push(event);
       return event;
@@ -571,8 +671,19 @@ export const store = {
         .filter((e) => e.organizationId === organizationId)
         .sort((a, b) => (a.at < b.at ? 1 : -1));
     },
-    findByIdempotencyKey(key: string): ShowingEvent | null {
-      return db.events.find((e) => e.idempotencyKey === key) ?? null;
+    /**
+     * Idempotency lookups are organization-scoped (TASK-010): keys are
+     * namespaced per org, matching the UNIQUE (organization_id,
+     * idempotency_key) constraint. Callers pass the actor's org.
+     */
+    findByIdempotencyKey(key: string, organizationId?: string): ShowingEvent | null {
+      return (
+        db.events.find(
+          (e) =>
+            e.idempotencyKey === key &&
+            (organizationId === undefined || e.organizationId === organizationId),
+        ) ?? null
+      );
     },
   },
 
@@ -633,6 +744,19 @@ export const store = {
       for (const [hash, s] of db.sessions) {
         if (s.userId === userId) db.sessions.delete(hash);
       }
+    },
+  },
+
+  /**
+   * Reminder sends (TASK-010 cron). One reminder per showing, ever —
+   * the set is the "already reminded" ledger.
+   */
+  reminders: {
+    sent(showingId: string): boolean {
+      return db.reminderSends.has(showingId);
+    },
+    markSent(showingId: string): void {
+      db.reminderSends.add(showingId);
     },
   },
 };

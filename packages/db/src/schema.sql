@@ -203,6 +203,17 @@ CREATE TABLE IF NOT EXISTS showing_locks (
 );
 CREATE INDEX IF NOT EXISTS showing_locks_showing_idx ON showing_locks (showing_id);
 
+-- ---- Reminder sends (TASK-010) ------------------------------------------------------
+-- Ledger for the /api/cron/reminders job: one reminder per showing, ever.
+-- The cron finds CONFIRMED showings whose last state change is older than
+-- the reminder threshold and that have no row here, sends the
+-- showing.reminder notification, then inserts the row. ON DELETE CASCADE
+-- keeps the ledger consistent with the showings table.
+CREATE TABLE IF NOT EXISTS reminder_sends (
+  showing_id UUID PRIMARY KEY REFERENCES showings(id) ON DELETE CASCADE,
+  sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ---- PMS integration boundary ------------------------------------------------
 CREATE TABLE IF NOT EXISTS pms_adapters (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

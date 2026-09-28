@@ -8,6 +8,11 @@ import {
 } from "@inssnapp/integrations";
 import { isPrivileged } from "@inssnapp/auth";
 import { db } from "../../../../lib/db";
+import {
+  checkRateLimit,
+  rateLimitExceeded,
+  rateLimitPresets,
+} from "../../../../lib/rate-limit";
 
 /**
  * Create a screening request (TASK-009).
@@ -29,6 +34,11 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return unauthorized();
   if (!isPrivileged(user.role)) return forbidden();
+
+  // TASK-010: per-user throttle on screening requests (abuse protection).
+  const limits = rateLimitPresets();
+  const rl = checkRateLimit(`screening:${user.userId}`, limits.screeningPerUser);
+  if (!rl.allowed) return rateLimitExceeded(rl.retryAfterSeconds);
 
   let body: { prospectUserId?: string; fixture?: string };
   try {

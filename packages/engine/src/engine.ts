@@ -17,7 +17,26 @@ export interface ShowingStore {
     patch: Partial<Pick<Showing, "state" | "outcome" | "prospectUserId" | "brokerUserId">>,
   ): Promise<Showing | null>;
   /** Returns the original event for an idempotency key, if one exists. */
-  getIdempotent?(idempotencyKey: string): Promise<ShowingEvent | null>;
+  getIdempotent?(idempotencyKey: string, organizationId: string): Promise<ShowingEvent | null>;
+  /**
+   * Atomic variant of (commitShowing + insertEvent) — TASK-010.
+   *
+   * Commits the state change and inserts the audit event in ONE atomic
+   * step (a single Postgres transaction; a single synchronous section in
+   * the in-memory store). Returns null when the version check fails, and
+   * propagates the unique-violation error (Postgres code 23505, mirrored
+   * by the in-memory store) when the idempotency key already exists — the
+   * caller treats that as a replay of the winning request.
+   *
+   * Optional: stores that do not implement it fall back to the separate
+   * commitShowing/insertEvent calls (unchanged semantics).
+   */
+  commitAndAudit?(args: {
+    id: string;
+    expectedVersion: number;
+    patch: Partial<Pick<Showing, "state" | "outcome" | "prospectUserId" | "brokerUserId">>;
+    event: Omit<ShowingEvent, "id" | "at">;
+  }): Promise<{ showing: Showing; event: ShowingEvent } | null>;
   /**
    * Unit/showing lock (TASK-003). Acquires the exclusive lock for `unitId`
    * on behalf of `showingId`. Returns false when another active workflow
@@ -77,7 +96,9 @@ export class ShowingEngine {
     const { showingId, transition, actor, idempotencyKey, outcome, brokerUserId } = req;
 
     // (1) Idempotency: a repeated request replays the original result safely.
-    const existing = await this.store.getIdempotent?.(idempotencyKey);
+    // Scoped to the actor's organization (TASK-010): a key issued in org A
+    // can never replay — or reveal the existence of — an event in org B.
+    const existing = await this.store.getIdempotent?.(idempotencyKey, actor.organizationId);
     if (existing) {
       if (existing.showingId !== showingId) {
         return {
@@ -171,27 +192,13 @@ export class ShowingEngine {
     if (transition === "PROSPECT_REQUEST") patch.prospectUserId = actor.userId;
     if (transition === "BROKER_ASSIGN" && brokerUserId) patch.brokerUserId = brokerUserId;
 
-    const committed = await this.store.commitShowing(showing.id, showing.version, patch);
-    if (!committed) {
-      // Never leave an orphan lock behind when the state write loses the race.
-      if (lockAcquired) {
-        await this.store.releaseUnitLock?.(showing.id);
-      }
-      return {
-        ok: false,
-        code: "CONCURRENCY_CONFLICT",
-        message: "Concurrent modification detected; retry the request.",
-      };
-    }
-
-    // Completion releases the unit/showing lock, enabling the outcome step
-    // and freeing the unit for future workflows.
-    if (transition === "COMPLETE") {
-      await this.store.releaseUnitLock?.(showing.id);
-    }
-
-    // (7) Audit — immutable event with actor, org, timestamp, state change.
-    const event = await this.store.insertEvent({
+    // (6)/(7) Commit + audit — TASK-010: commitAndAudit performs the
+    // state write and the audit-event insert in ONE atomic step (a single
+    // Postgres transaction; a single synchronous section in the in-memory
+    // store), so a crash can no longer leave a committed transition with
+    // no audit trail. Stores without commitAndAudit use the legacy
+    // two-step path (unchanged semantics).
+    const eventInput = {
       showingId: showing.id,
       organizationId: showing.organizationId,
       actorUserId: actor.userId,
@@ -200,7 +207,70 @@ export class ShowingEngine {
       fromState: showing.state,
       toState: to,
       idempotencyKey,
-    });
+    };
+
+    let committed: Showing;
+    let event: ShowingEvent;
+    if (this.store.commitAndAudit) {
+      let atomic: { showing: Showing; event: ShowingEvent } | null;
+      try {
+        atomic = await this.store.commitAndAudit({
+          id: showing.id,
+          expectedVersion: showing.version,
+          patch,
+          event: eventInput,
+        });
+      } catch (err) {
+        // A throw (e.g. the 23505 unique violation on the idempotency key in
+        // a true race) must not leak the unit lock we just acquired.
+        if (lockAcquired) {
+          await this.store.releaseUnitLock?.(showing.id);
+        }
+        throw err;
+      }
+      if (!atomic) {
+        // Never leave an orphan lock behind when the state write loses the race.
+        if (lockAcquired) {
+          await this.store.releaseUnitLock?.(showing.id);
+        }
+        return {
+          ok: false,
+          code: "CONCURRENCY_CONFLICT",
+          message: "Concurrent modification detected; retry the request.",
+        };
+      }
+      committed = atomic.showing;
+      event = atomic.event;
+    } else {
+      const c = await this.store.commitShowing(showing.id, showing.version, patch);
+      if (!c) {
+        // Never leave an orphan lock behind when the state write loses the race.
+        if (lockAcquired) {
+          await this.store.releaseUnitLock?.(showing.id);
+        }
+        return {
+          ok: false,
+          code: "CONCURRENCY_CONFLICT",
+          message: "Concurrent modification detected; retry the request.",
+        };
+      }
+      committed = c;
+
+      // Completion releases the unit/showing lock, enabling the outcome step
+      // and freeing the unit for future workflows.
+      if (transition === "COMPLETE") {
+        await this.store.releaseUnitLock?.(showing.id);
+      }
+
+      // (7) Audit — immutable event with actor, org, timestamp, state change.
+      event = await this.store.insertEvent(eventInput);
+    }
+
+    // Completion releases the unit/showing lock when the atomic path was
+    // used (the legacy path released it just above, before the audit insert).
+    if (transition === "COMPLETE" && this.store.commitAndAudit) {
+      await this.store.releaseUnitLock?.(showing.id);
+    }
 
     return { ok: true, showing: committed, event, replayed: false };
   }
