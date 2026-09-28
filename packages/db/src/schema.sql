@@ -263,3 +263,44 @@ ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT 
 ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS last_health_check_at TIMESTAMPTZ;
 ALTER TABLE pms_adapters ADD COLUMN IF NOT EXISTS health_status TEXT;
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS pms_external_id TEXT;
+
+-- ---- TASK-009: Checkr sandbox workflow, compliance-safe boundary -------------
+-- Consent records (org-scoped): a screening request is created only when a
+-- consent record exists for the org+prospect; requesting without one fails
+-- closed. Legal approvals: the second half of the structural production
+-- gate — production consumer-report processing is impossible without a
+-- recorded approval (scope §4).
+CREATE TABLE IF NOT EXISTS screening_consents (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  prospect_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  scope_text      TEXT NOT NULL,
+  consented_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  recorded_by     UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS screening_consents_org_prospect_idx
+  ON screening_consents (organization_id, prospect_user_id, consented_at DESC);
+
+CREATE TABLE IF NOT EXISTS screening_reports (
+  id              TEXT PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  prospect_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mode            TEXT NOT NULL,   -- 'sandbox' | 'production'
+  status          TEXT NOT NULL,   -- 'clear' | 'review' | 'consider'
+  detail          TEXT NOT NULL,
+  requested_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  requested_by    UUID NULL REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS screening_reports_org_idx
+  ON screening_reports (organization_id, completed_at DESC);
+
+CREATE TABLE IF NOT EXISTS screening_legal_approvals (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  approved_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  approved_by     TEXT NOT NULL,
+  notes           TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS screening_legal_approvals_org_idx
+  ON screening_legal_approvals (organization_id, approved_at DESC);

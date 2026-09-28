@@ -95,6 +95,44 @@ export interface SecurityEvent {
   at: string;
 }
 
+/**
+ * Prospect screening consent record (TASK-009). A screening request is
+ * created only when one of these exists — requesting without it fails
+ * closed (scope §4: consent flows are a production prerequisite).
+ */
+export interface ScreeningConsent {
+  id: string;
+  organizationId: string;
+  prospectUserId: string;
+  /** The exact consent language the prospect accepted. */
+  scopeText: string;
+  consentedAt: string;
+  /** User id that recorded the consent (prospect themselves or staff). */
+  recordedBy: string;
+}
+
+/** One screening report record (sandbox fixture until the production gate opens). */
+export interface ScreeningReport {
+  id: string;
+  organizationId: string;
+  prospectUserId: string;
+  mode: "sandbox" | "production";
+  status: "clear" | "review" | "consider";
+  detail: string;
+  requestedAt: string;
+  completedAt: string;
+  requestedBy: string | null;
+}
+
+/** Recorded legal/compliance approval — the second half of the production gate. */
+export interface ScreeningLegalApproval {
+  id: string;
+  organizationId: string;
+  approvedAt: string;
+  approvedBy: string;
+  notes: string;
+}
+
 // DEV-ONLY demo credentials. argon2id hash of the password "pw", generated
 // at seed time for TASK-002 (see packages/auth/src/password.ts).
 // The admin TOTP secret lives in ./demo.ts (dev-only fixed secret so local
@@ -110,6 +148,12 @@ interface StoreData {
   residents: ResidentLink[];
   pmsAdapters: PmsAdapter[];
   securityEvents: SecurityEvent[];
+  /** Screening consent records (org-scoped; TASK-009). */
+  screeningConsents: ScreeningConsent[];
+  /** Screening report records (org-scoped; TASK-009). */
+  screeningReports: ScreeningReport[];
+  /** Recorded legal approvals for production screening (TASK-009). */
+  screeningLegalApprovals: ScreeningLegalApproval[];
   showings: Map<string, Showing>;
   events: ShowingEvent[];
   ratings: ShowingRating[];
@@ -165,6 +209,9 @@ function seed(): StoreData {
       },
     ],
     securityEvents: [],
+    screeningConsents: [],
+    screeningReports: [],
+    screeningLegalApprovals: [],
     showings: new Map(),
     events: [],
     ratings: [],
@@ -272,6 +319,83 @@ export const store = {
       events.sort((a, b) => (a.at < b.at ? 1 : -1));
       if (opts.limit) events = events.slice(0, opts.limit);
       return events;
+    },
+  },
+
+  // ---- Screening sandbox boundary (TASK-009) ---------------------------------
+  // Consent records, screening reports, and legal approvals — all
+  // org-scoped. The service layer (apps/web/lib/screening.ts) refuses to
+  // create a screening request without a consent record for the org+prospect.
+  screeningConsents: {
+    insert(
+      organizationId: string,
+      prospectUserId: string,
+      scopeText: string,
+      recordedBy: string,
+    ): ScreeningConsent {
+      const consent: ScreeningConsent = {
+        id: newId("scr_c"),
+        organizationId,
+        prospectUserId,
+        scopeText,
+        consentedAt: new Date().toISOString(),
+        recordedBy,
+      };
+      db.screeningConsents.push(consent);
+      return consent;
+    },
+    /** Most recent consent for this prospect in this organization (org-scoped). */
+    latest(organizationId: string, prospectUserId: string): ScreeningConsent | null {
+      const mine = db.screeningConsents.filter(
+        (c) => c.organizationId === organizationId && c.prospectUserId === prospectUserId,
+      );
+      return mine.length ? mine[mine.length - 1] : null;
+    },
+    byOrg(organizationId: string): ScreeningConsent[] {
+      return db.screeningConsents.filter((c) => c.organizationId === organizationId);
+    },
+  },
+
+  screeningReports: {
+    insert(report: Omit<ScreeningReport, "id"> & { id?: string }): ScreeningReport {
+      const row: ScreeningReport = { ...report, id: report.id ?? newId("scr_r") };
+      // Idempotent by deterministic id (sandbox adapter re-requests).
+      const idx = db.screeningReports.findIndex((r) => r.id === row.id);
+      if (idx === -1) db.screeningReports.push(row);
+      else db.screeningReports[idx] = row;
+      return row;
+    },
+    byId(organizationId: string, id: string): ScreeningReport | null {
+      return (
+        db.screeningReports.find((r) => r.organizationId === organizationId && r.id === id) ??
+        null
+      );
+    },
+    recent(organizationId: string, limit = 25): ScreeningReport[] {
+      return db.screeningReports
+        .filter((r) => r.organizationId === organizationId)
+        .slice(-limit)
+        .reverse();
+    },
+  },
+
+  screeningLegalApprovals: {
+    insert(organizationId: string, approvedBy: string, notes: string): ScreeningLegalApproval {
+      const approval: ScreeningLegalApproval = {
+        id: newId("scr_a"),
+        organizationId,
+        approvedAt: new Date().toISOString(),
+        approvedBy,
+        notes,
+      };
+      db.screeningLegalApprovals.push(approval);
+      return approval;
+    },
+    latest(organizationId: string): ScreeningLegalApproval | null {
+      const mine = db.screeningLegalApprovals.filter(
+        (a) => a.organizationId === organizationId,
+      );
+      return mine.length ? mine[mine.length - 1] : null;
     },
   },
 

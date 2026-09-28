@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, unauthorized, forbidden } from "../../../lib/auth-helpers";
 import { db } from "../../../lib/db";
 import { getNotificationAdapter } from "@inssnapp/integrations";
+import { getScreeningService } from "../../../lib/screening";
 import { isPrivileged } from "@inssnapp/auth";
 
 /**
@@ -79,12 +80,24 @@ export async function GET(req: NextRequest) {
             "A real provider registers behind the NotificationAdapter interface without engine changes."
           : `Provider "${notifier.name}" registered behind the NotificationAdapter interface.`,
     },
-    {
-      name: "Screening",
-      status: "not_configured",
-      detail: "Screening is a boundary only — no adapter or sandbox workflow exists yet (TASK-009).",
-    },
   );
+
+  // Screening: real mode + counts from the sandbox workflow (TASK-009).
+  // The mode banner in the Control Center shows this prominently; it can
+  // only ever leave "sandbox" when the production gate opens.
+  const screening = getScreeningService();
+  const screeningMode = await screening.getModeStatus(user.organizationId);
+  const screeningConsents = await screening.consentRecords(user.organizationId);
+  const screeningRecent = await screening.recentScreenings(user.organizationId, 5);
+  integrations.push({
+    name: "Screening",
+    status: screeningMode.mode === "sandbox" ? "sandbox" : "connected",
+    detail:
+      `Checkr ${screeningMode.adapter} · mode: ${screeningMode.mode.toUpperCase()}. ` +
+      `${screeningRecent.length > 0 ? `${screeningRecent.length} recent sandbox screening(s); ` : "No screenings run yet; "}` +
+      `${screeningConsents.length} consent record(s). ` +
+      (screeningMode.productionBlockedReason ?? "Production screening remains gated (scope §4)."),
+  });
 
   return NextResponse.json({ integrations });
 }

@@ -10,6 +10,9 @@
  * Notifications: NotificationAdapter interface + dev ConsoleNotificationAdapter
  * + fail-open notifySafely. A real SMS/email provider registers through the
  * module registry without engine changes.
+ *
+ * Screening (TASK-009): vendor-neutral ScreeningAdapter + mocked
+ * SandboxCheckrAdapter + consent fail-closed + structural production gate.
  */
 export type {
   PmsProperty,
@@ -28,6 +31,31 @@ export {
   SANDBOX_ADAPTER_TYPE,
   SANDBOX_DATASET,
 } from "./sandbox";
+export type {
+  ScreeningMode,
+  ScreeningStatus,
+  ScreeningFixture,
+  ScreeningRequestInput,
+  ScreeningReport,
+  ScreeningAdapter,
+  ScreeningConsent,
+  ScreeningConsentStore,
+  ScreeningReportStore,
+  ScreeningLegalApproval,
+  ScreeningLegalApprovalStore,
+  ScreeningModeConfig,
+  ScreeningServiceDeps,
+} from "./screening";
+export {
+  PRODUCTION_PREREQUISITES,
+  DEFAULT_CONSENT_SCOPE_TEXT,
+  readScreeningModeConfig,
+  resolveScreeningMode,
+  ScreeningConsentRequiredError,
+  ScreeningProductionBlockedError,
+  SandboxCheckrAdapter,
+  ScreeningService,
+} from "./screening";
 export type {
   NotificationEventName,
   NotificationRecipient,

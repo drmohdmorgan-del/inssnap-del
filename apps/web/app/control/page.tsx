@@ -8,6 +8,7 @@ import { OrgsOverview, OrgsStatCards } from "../../components/OrgsOverview";
 import { WorkflowMonitor } from "../../components/WorkflowMonitor";
 import { AuditLogViewer } from "../../components/AuditLogViewer";
 import { IntegrationStatus } from "../../components/IntegrationStatus";
+import { ScreeningPanel } from "../../components/ScreeningPanel";
 import { SecurityEvents } from "../../components/SecurityEvents";
 
 export default function ControlPage() {
@@ -62,6 +63,8 @@ export default function ControlPage() {
             <IntegrationStatus />
             <SecurityEvents />
           </div>
+
+          <ScreeningPanel />
 
           <AuditLogViewer />
         </div>

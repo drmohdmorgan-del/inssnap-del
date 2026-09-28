@@ -86,6 +86,35 @@ export interface RatingRow {
   createdAt: string;
 }
 
+export interface ScreeningConsentRow {
+  id: string;
+  organizationId: string;
+  prospectUserId: string;
+  scopeText: string;
+  consentedAt: string;
+  recordedBy: string;
+}
+
+export interface ScreeningReportRow {
+  id: string;
+  organizationId: string;
+  prospectUserId: string;
+  mode: "sandbox" | "production";
+  status: "clear" | "review" | "consider";
+  detail: string;
+  requestedAt: string;
+  completedAt: string;
+  requestedBy: string | null;
+}
+
+export interface ScreeningLegalApprovalRow {
+  id: string;
+  organizationId: string;
+  approvedAt: string;
+  approvedBy: string;
+  notes: string;
+}
+
 export const usingPostgres = Boolean(process.env.DATABASE_URL);
 
 export async function migrate() {
@@ -156,6 +185,31 @@ export const db = {
         [organizationId],
       );
       return res.rows;
+    },
+
+    /** Safe fields by id (TASK-009: org-scoped prospect lookup). */
+    async byId(id: string): Promise<SafeUserRow | null> {
+      if (!usingPostgres) {
+        const u = mem.users.byId(id);
+        return u
+          ? {
+              id: u.id,
+              organizationId: u.organizationId,
+              email: u.email,
+              fullName: u.fullName,
+              role: u.role,
+              mfaEnabled: u.mfaEnabled,
+            }
+          : null;
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", email,
+                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled"
+         FROM users WHERE id = $1`,
+        [id],
+      );
+      return res.rows[0] ?? null;
     },
   },
 
@@ -650,6 +704,177 @@ export const db = {
         params,
       );
       return res.rows;
+    },
+  },
+
+  // ---- Screening sandbox boundary (TASK-009) --------------------------------
+  // Consent records, reports, and legal approvals — org-scoped on both
+  // store paths. The ScreeningService (apps/web/lib/screening.ts) is the
+  // only writer of requests; it fails closed without a consent record.
+  screening: {
+    async recordConsent(
+      organizationId: string,
+      prospectUserId: string,
+      scopeText: string,
+      recordedBy: string,
+    ): Promise<ScreeningConsentRow> {
+      if (!usingPostgres) {
+        return mem.screeningConsents.insert(organizationId, prospectUserId, scopeText, recordedBy);
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO screening_consents
+           (organization_id, prospect_user_id, scope_text, recorded_by)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, organization_id AS "organizationId",
+                   prospect_user_id AS "prospectUserId", scope_text AS "scopeText",
+                   consented_at AS "consentedAt", recorded_by AS "recordedBy"`,
+        [organizationId, prospectUserId, scopeText, recordedBy],
+      );
+      return res.rows[0];
+    },
+
+    async latestConsent(
+      organizationId: string,
+      prospectUserId: string,
+    ): Promise<ScreeningConsentRow | null> {
+      if (!usingPostgres) {
+        return mem.screeningConsents.latest(organizationId, prospectUserId);
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                prospect_user_id AS "prospectUserId", scope_text AS "scopeText",
+                consented_at AS "consentedAt", recorded_by AS "recordedBy"
+         FROM screening_consents
+         WHERE organization_id = $1 AND prospect_user_id = $2
+         ORDER BY consented_at DESC LIMIT 1`,
+        [organizationId, prospectUserId],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async consentsByOrg(organizationId: string): Promise<ScreeningConsentRow[]> {
+      if (!usingPostgres) return mem.screeningConsents.byOrg(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                prospect_user_id AS "prospectUserId", scope_text AS "scopeText",
+                consented_at AS "consentedAt", recorded_by AS "recordedBy"
+         FROM screening_consents WHERE organization_id = $1
+         ORDER BY consented_at DESC`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+
+    async saveReport(report: Omit<ScreeningReportRow, "requestedBy"> & {
+      requestedBy?: string | null;
+    }): Promise<ScreeningReportRow> {
+      if (!usingPostgres) {
+        return mem.screeningReports.insert({
+          ...report,
+          requestedBy: report.requestedBy ?? null,
+        });
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO screening_reports
+           (id, organization_id, prospect_user_id, mode, status, detail,
+            requested_at, completed_at, requested_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (id) DO UPDATE SET
+           mode = EXCLUDED.mode, status = EXCLUDED.status,
+           detail = EXCLUDED.detail, completed_at = EXCLUDED.completed_at
+         RETURNING id, organization_id AS "organizationId",
+                   prospect_user_id AS "prospectUserId", mode, status, detail,
+                   requested_at AS "requestedAt", completed_at AS "completedAt",
+                   requested_by AS "requestedBy"`,
+        [
+          report.id,
+          report.organizationId,
+          report.prospectUserId,
+          report.mode,
+          report.status,
+          report.detail,
+          report.requestedAt,
+          report.completedAt,
+          report.requestedBy ?? null,
+        ],
+      );
+      return res.rows[0];
+    },
+
+    async reportById(
+      organizationId: string,
+      id: string,
+    ): Promise<ScreeningReportRow | null> {
+      if (!usingPostgres) return mem.screeningReports.byId(organizationId, id);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                prospect_user_id AS "prospectUserId", mode, status, detail,
+                requested_at AS "requestedAt", completed_at AS "completedAt",
+                requested_by AS "requestedBy"
+         FROM screening_reports
+         WHERE organization_id = $1 AND id = $2`,
+        [organizationId, id],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async recentReports(
+      organizationId: string,
+      limit = 25,
+    ): Promise<ScreeningReportRow[]> {
+      if (!usingPostgres) return mem.screeningReports.recent(organizationId, limit);
+      const pool = await getPool();
+      const safeLimit = Math.min(Math.max(limit, 1), 100);
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                prospect_user_id AS "prospectUserId", mode, status, detail,
+                requested_at AS "requestedAt", completed_at AS "completedAt",
+                requested_by AS "requestedBy"
+         FROM screening_reports WHERE organization_id = $1
+         ORDER BY completed_at DESC LIMIT ${safeLimit}`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+
+    async recordLegalApproval(
+      organizationId: string,
+      approvedBy: string,
+      notes: string,
+    ): Promise<ScreeningLegalApprovalRow> {
+      if (!usingPostgres) {
+        return mem.screeningLegalApprovals.insert(organizationId, approvedBy, notes);
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO screening_legal_approvals (organization_id, approved_by, notes)
+         VALUES ($1, $2, $3)
+         RETURNING id, organization_id AS "organizationId",
+                   approved_at AS "approvedAt", approved_by AS "approvedBy", notes`,
+        [organizationId, approvedBy, notes],
+      );
+      return res.rows[0];
+    },
+
+    async latestLegalApproval(
+      organizationId: string,
+    ): Promise<ScreeningLegalApprovalRow | null> {
+      if (!usingPostgres) return mem.screeningLegalApprovals.latest(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                approved_at AS "approvedAt", approved_by AS "approvedBy", notes
+         FROM screening_legal_approvals
+         WHERE organization_id = $1
+         ORDER BY approved_at DESC LIMIT 1`,
+        [organizationId],
+      );
+      return res.rows[0] ?? null;
     },
   },
 
