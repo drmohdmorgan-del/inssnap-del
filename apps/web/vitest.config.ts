@@ -7,6 +7,11 @@ import { defineConfig } from "vitest/config";
  * postcss-load-config cannot resolve.
  */
 export default defineConfig({
+  esbuild: {
+    // Next.js app code uses the automatic JSX runtime; esbuild's default
+    // classic transform would require an in-scope React import.
+    jsx: "automatic",
+  },
   css: {
     postcss: {
       plugins: [],

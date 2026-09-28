@@ -1,7 +1,7 @@
 # INSSNAPP Master Specification
 
 **Version:** September 2026
-**Status:** Foundation + mobile complete (TASK-001/002/003/004/005/006/007 complete)
+**Status:** Foundation + mobile + public website complete (TASK-001/002/003/004/005/006/007/011 complete)
 
 ## 1. Vision
 
@@ -60,6 +60,7 @@ The Showing Engine is the sole authority permitted to change showing state.
 | TASK-005 | Prospect role experience | ✅ Complete (2026-09-28: same Expo codebase — eligible-unit discovery (eligible + residentAvailable) with search from GET /api/units, unit detail, Request Showing via POST /api/showings/request with caller idempotency keys, live request-status tracking, Apply/Watch/Decline via POST /api/showings/[id]/outcome; covered by the mobile unit tests + existing engine/route suites) |
 | TASK-006 | Broker role experience | ✅ Complete (2026-09-28: same Expo codebase — assignment queue (showings assigned to the broker in BROKER_GATE/CONFIRMED/IN_PROGRESS/COMPLETED), accept/decline assignment, check-in, complete, post-completion star rating; all actions hit the real named engine routes; covered by the mobile unit tests + existing engine/route suites) |
 | TASK-007 | Management live operations, Control Center workflow monitor | ✅ Complete (2026-09-28: tabbed Management desktop — live showings monitor with state filter, property/unit CRUD, eligibility toggle, residents list with participation status, reports (funnel, resident response times from audit events, participation), settings with truthful PMS status; Control Center (inssnapp_admin only, client + API) — org overview, workflow state distribution, filtered audit log, truthful integration status (hardcoded "Notifications: connected" badge removed), security events (login/MFA failures, session revocations recorded by auth routes); security_events table; cross-org 404 pattern on all new routes; 14 new API tests, all suites green) |
+| TASK-011 | Public marketing website (public routes in apps/web) | ✅ Complete (2026-09-28: new public landing `/` (replaces the `/login` redirect) + `/services`, `/how-it-works`, `/roles`; static server-rendered marketing copy — hero positioning "Resident-Powered Leasing Infrastructure / The Missing Tile™", full end-to-end workflow, five role experiences, six service cards, one-Expo-codebase iOS/Android mobile mention, Sign in → `/login` and contact CTAs; shared marketing components under `components/marketing/` — CSS/SVG only, no external assets; `/login`, `/admin`, `/control` unchanged and still auth-gated; copy kept in building/pilot-stage language; 12 new route tests: public pages render 200-equivalent without auth and leak no org/demo data, anonymous API calls still 401, /admin + /control still redirect to /login; all suites green) |
 | TASK-008 | PMS sandbox/adapter, notifications | ⏳ Pending |
 | TASK-009 | Checkr sandbox workflow, compliance-safe boundary | ⏳ Pending |
 | TASK-010 | Security hardening, E2E tests, load/concurrency tests, pilot deployment, release audit | ⏳ Pending |
