@@ -1,6 +1,7 @@
 "use client";
 
 import { DEMO_TOTP_SECRET } from "../../lib/demo";
+import { BrandMark } from "../../components/brand/BrandMark";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -66,8 +67,14 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-brand-navy-light/5 to-brand-violet/10 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-brand-navy-light/15 bg-white p-8 shadow-xl">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-navy p-4">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 left-1/4 h-96 w-96 rounded-full bg-brand-violet/25 blur-[130px]" />
+        <div className="absolute -bottom-32 right-1/4 h-80 w-80 rounded-full bg-brand-violet-light/20 blur-[130px]" />
+        <BrandMark className="absolute -right-20 -top-20 h-80 w-80 opacity-[0.05]" />
+        <BrandMark className="absolute -bottom-24 -left-16 h-64 w-64 opacity-[0.04]" />
+      </div>
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
           <img
             src="/brand/inssnapp-logo.png"

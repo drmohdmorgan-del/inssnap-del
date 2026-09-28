@@ -26,8 +26,7 @@ import { getAuthStore } from "./auth-store";
  * falling back to the session cookie (web browsers). Both carry the same
  * signed session value and resolve through the identical verification
  * path in `resolveSession` — the web cookie flow is completely unchanged.
- */
-export function sessionCredentialFromRequest(req: NextRequest): string | undefined {
+ */export function sessionCredentialFromRequest(req: NextRequest): string | undefined {
   const auth = req.headers.get("authorization");
   if (auth) {
     const m = /^Bearer\s+(\S+)$/i.exec(auth.trim());
@@ -39,6 +38,19 @@ export function sessionCredentialFromRequest(req: NextRequest): string | undefin
 /** Resolves the authenticated user from the Bearer credential or session cookie. */
 export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
   return resolveSession(getAuthStore(), sessionCredentialFromRequest(req));
+}
+
+/**
+ * Platform authority matrix: which roles may sign in on the native mobile
+ * app. The mobile app exists for the three field roles only — resident,
+ * prospect, broker. Management and the INSSNAPP admin are desktop-only:
+ * their consoles have no mobile UI. Desktop (web) login remains open to
+ * every role. Enforced wherever a mobile token (`issueToken: true`) can be
+ * minted: /api/auth/login and /api/auth/mfa/verify.
+ */
+const MOBILE_ALLOWED_ROLES = new Set(["resident", "prospect", "broker"]);
+export function isMobileLoginAllowed(role: string): boolean {
+  return MOBILE_ALLOWED_ROLES.has(role);
 }
 
 /**

@@ -8,7 +8,7 @@ import { SiteHeader } from "../../components/marketing/SiteHeader";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { SectionDivider } from "../../components/marketing/SectionDivider";
 import { SiteFooter } from "../../components/marketing/SiteFooter";
-import { Card, CheckList, CtaBand, SectionHeading } from "../../components/marketing/marketing-ui";
+import { Card, CheckList, CtaBand, NavyBand, SectionHeading } from "../../components/marketing/marketing-ui";
 import { MOBILE_NOTE, ROLE_CARDS } from "../../components/marketing/marketing-content";
 
 export const metadata: Metadata = {
@@ -22,16 +22,22 @@ export default function RolesPage() {
     <div className="min-h-screen bg-white">
       <SiteHeader />
       <main>
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <div className="mb-8 flex justify-center">
-            <BrandMark className="h-16 w-16" />
+        <NavyBand>
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+            <div className="mb-8 flex justify-center">
+              <BrandMark className="h-16 w-16" />
+            </div>
+            <SectionHeading
+              dark
+              eyebrow="Roles"
+              title="Five roles, five purpose-built experiences"
+              intro="Every role sees only what it needs for its part of the showing. Web portals for operations teams; mobile for residents, prospects, and brokers."
+            />
           </div>
-          <SectionHeading
-            eyebrow="Roles"
-            title="Five roles, five purpose-built experiences"
-            intro="Every role sees only what it needs for its part of the showing. Web portals for operations teams; mobile for residents, prospects, and brokers."
-          />
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
+        </NavyBand>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <div className="mt-2 grid gap-5 md:grid-cols-2">
             {ROLE_CARDS.map((role) => (
               <Card key={role.role} title={role.role}>
                 <p className="mb-1">
@@ -48,9 +54,10 @@ export default function RolesPage() {
 
         <SectionDivider />
 
-        <section className="bg-brand-navy-light/5">
+        <NavyBand>
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <SectionHeading
+              dark
               eyebrow="Mobile"
               title="Role-based mobile, one codebase"
               intro={MOBILE_NOTE}
@@ -61,9 +68,7 @@ export default function RolesPage() {
               <Card title="Broker">iOS & Android — assignments first.</Card>
             </div>
           </div>
-        </section>
-
-        <SectionDivider />
+        </NavyBand>
 
         <CtaBand
           title="Which role fits you?"

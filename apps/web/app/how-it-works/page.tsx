@@ -8,7 +8,7 @@ import { SiteHeader } from "../../components/marketing/SiteHeader";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { SectionDivider } from "../../components/marketing/SectionDivider";
 import { SiteFooter } from "../../components/marketing/SiteFooter";
-import { Card, CtaBand, SectionHeading } from "../../components/marketing/marketing-ui";
+import { Card, CtaBand, NavyBand, SectionHeading } from "../../components/marketing/marketing-ui";
 import { WORKFLOW_STEPS } from "../../components/marketing/marketing-content";
 
 export const metadata: Metadata = {
@@ -22,23 +22,28 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-white">
       <SiteHeader />
       <main>
-        <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-          <div className="mb-8 flex justify-center">
-            <BrandMark className="h-16 w-16" />
+        <NavyBand>
+          <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
+            <div className="mb-8 flex justify-center">
+              <BrandMark className="h-16 w-16" />
+            </div>
+            <SectionHeading
+              dark
+              eyebrow="How it works"
+              title="From management sign up to lease"
+              intro="The end-to-end workflow: management owns the platform, the leads, and the prospects. Each step hands off cleanly to the next — and the Showing Engine guards every transition."
+            />
           </div>
-          <SectionHeading
-            eyebrow="How it works"
-            title="From management sign up to lease"
-            intro="The end-to-end workflow: management owns the platform, the leads, and the prospects. Each step hands off cleanly to the next — and the Showing Engine guards every transition."
-          />
+        </NavyBand>
 
-          <ol className="mt-10 space-y-4">
+        <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
+          <ol className="mt-2 space-y-4">
             {WORKFLOW_STEPS.map((step, i) => (
               <li
                 key={step.title}
-                className="flex gap-4 rounded-2xl border border-brand-navy-light/15 bg-white p-5 shadow-sm"
+                className="flex gap-4 rounded-2xl border border-brand-navy-light/15 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-brand-violet/40 hover:shadow-lg hover:shadow-brand-violet/10"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-sm font-bold text-white">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-sm font-bold text-white shadow-md shadow-brand-violet/30">
                   {i + 1}
                 </span>
                 <div>
@@ -52,9 +57,10 @@ export default function HowItWorksPage() {
 
         <SectionDivider />
 
-        <section className="bg-brand-navy-light/5">
+        <NavyBand>
           <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
             <SectionHeading
+              dark
               eyebrow="Engine states"
               title="One authoritative state machine"
               intro="The Showing Engine moves each workflow through these states — portals and mobile apps request transitions, the engine approves them."
@@ -72,7 +78,7 @@ export default function HowItWorksPage() {
               ].map((state) => (
                 <span
                   key={state}
-                  className="rounded-full bg-brand-violet/10 px-3 py-1.5 font-mono text-xs font-semibold text-brand-violet"
+                  className="rounded-full border border-brand-violet-light/30 bg-brand-violet/20 px-3 py-1.5 font-mono text-xs font-semibold text-brand-violet-light"
                 >
                   {state}
                 </span>
@@ -99,9 +105,7 @@ export default function HowItWorksPage() {
               </Card>
             </div>
           </div>
-        </section>
-
-        <SectionDivider />
+        </NavyBand>
 
         <CtaBand
           title="Follow the full workflow live"

@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS security_events (
   -- NULL when the event cannot be attributed to an organization (e.g. a
   -- login attempt for an unknown email address).
   organization_id UUID NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  type            TEXT NOT NULL,  -- 'login_failed' | 'login_succeeded' | 'mfa_failed' | 'session_revoked'
+  type            TEXT NOT NULL,  -- 'login_failed' | 'login_succeeded' | 'login_denied' | 'mfa_failed' | 'session_revoked'
   actor_user_id   UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   actor_email     TEXT NULL,
   detail          TEXT NULL,

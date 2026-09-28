@@ -40,7 +40,7 @@ export function SiteHeader() {
           ))}
           <a
             href="/login"
-            className="rounded-lg bg-gradient-to-r from-brand-violet to-brand-violet-light px-4 py-1.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="rounded-lg bg-gradient-to-r from-brand-violet to-brand-violet-light px-4 py-1.5 text-sm font-semibold text-white shadow-md shadow-brand-violet/25 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-violet/35 hover:brightness-110"
           >
             Sign in
           </a>
@@ -79,7 +79,7 @@ export function SiteHeader() {
             ))}
             <a
               href="/login"
-              className="mt-2 block rounded-lg bg-gradient-to-r from-brand-violet to-brand-violet-light px-3 py-2.5 text-center text-sm font-semibold text-white transition hover:opacity-90"
+              className="mt-2 block rounded-lg bg-gradient-to-r from-brand-violet to-brand-violet-light px-3 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-brand-violet/25 transition hover:brightness-110"
             >
               Sign in
             </a>

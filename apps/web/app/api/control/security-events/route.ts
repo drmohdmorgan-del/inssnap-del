@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "../../../../lib/admin-guard";
 import { db } from "../../../../lib/db";
 
-const VALID_TYPES = ["login_failed", "login_succeeded", "mfa_failed", "session_revoked"];
+const VALID_TYPES = ["login_failed", "login_succeeded", "login_denied", "mfa_failed", "session_revoked"];
 
 /**
  * Security events view: authentication-relevant activity across

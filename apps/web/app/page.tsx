@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 import { SiteHeader } from "../components/marketing/SiteHeader";
 import { BrandMark } from "../components/brand/BrandMark";
 import { SiteFooter } from "../components/marketing/SiteFooter";
-import { Card, CheckList, CtaBand, SectionHeading } from "../components/marketing/marketing-ui";
+import { Card, CheckList, CtaBand, NavyBand, SectionHeading } from "../components/marketing/marketing-ui";
 import { SectionDivider } from "../components/marketing/SectionDivider";
 import {
   MOBILE_NOTE,
@@ -32,17 +32,20 @@ export default function HomePage() {
 
       <main>
         {/* Hero */}
-        <section className="bg-gradient-to-br from-brand-navy/5 via-white to-brand-violet/10">
+        <NavyBand>
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
             <div>
               <BrandMark className="h-16 w-16" />
-              <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-violet/30 bg-white px-3 py-1 text-xs font-semibold text-brand-violet">
+              <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-violet-light/40 bg-white/5 px-3 py-1 text-xs font-semibold text-brand-violet-light">
                 In development — preparing for pilot
               </p>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-brand-navy sm:text-5xl">
-                Resident-Powered Leasing Infrastructure
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                Resident-Powered{" "}
+                <span className="bg-gradient-to-r from-brand-violet-light to-brand-violet bg-clip-text text-transparent">
+                  Leasing Infrastructure
+                </span>
               </h1>
-              <p className="mt-4 text-lg text-brand-navy-light">
+              <p className="mt-4 text-lg text-white/70">
                 The Missing Tile™ in real-time occupied-unit showing
                 coordination. INSSNAPP coordinates resident availability,
                 prospect requests, optional broker participation, and showing
@@ -51,53 +54,53 @@ export default function HomePage() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href="/login"
-                  className="rounded-xl bg-gradient-to-r from-brand-violet to-brand-violet-light px-6 py-3 text-sm font-semibold text-white shadow transition hover:opacity-90"
+                  className="rounded-xl bg-gradient-to-r from-brand-violet to-brand-violet-light px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-violet/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-violet/40 hover:brightness-110"
                 >
                   Sign in
                 </a>
                 <a
                   href="/how-it-works"
-                  className="rounded-xl border border-brand-navy-light/25 bg-white px-6 py-3 text-sm font-semibold text-brand-navy-light transition hover:bg-brand-navy-light/10"
+                  className="rounded-xl border border-white/25 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-brand-violet-light/60 hover:bg-white/10"
                 >
                   See how it works
                 </a>
               </div>
             </div>
             <div className="hidden lg:block">
-              <div className="rounded-3xl border border-brand-navy-light/15 bg-white p-8 shadow-xl">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
                 <div className="mb-4 flex items-center gap-3">
                   <BrandMark className="h-10 w-10" />
-                  <p className="text-sm font-semibold text-brand-navy">
+                  <p className="text-sm font-semibold text-white">
                     End-to-end workflow
                   </p>
                 </div>
-                <p className="text-sm text-brand-navy-light/60">
+                <p className="text-sm text-white/60">
                   From management sign up to lease — management owns the
                   platform, the leads, and the prospects.
                 </p>
                 <ol className="mt-5 space-y-3">
                   {WORKFLOW_PREVIEW.map((step, i) => (
                     <li key={step.title} className="flex items-start gap-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-xs font-bold text-white">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-brand-violet to-brand-violet-light text-xs font-bold text-white shadow-md shadow-brand-violet/40">
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-semibold text-brand-navy">{step.title}</p>
-                        <p className="text-xs text-brand-navy-light/60">{step.detail}</p>
+                        <p className="text-sm font-semibold text-white">{step.title}</p>
+                        <p className="text-xs text-white/60">{step.detail}</p>
                       </div>
                     </li>
                   ))}
                 </ol>
                 <a
                   href="/how-it-works"
-                  className="mt-5 inline-block text-sm font-semibold text-brand-violet hover:text-brand-violet-light"
+                  className="mt-5 inline-block text-sm font-semibold text-brand-violet-light hover:text-white"
                 >
                   View the full workflow →
                 </a>
               </div>
             </div>
           </div>
-        </section>
+        </NavyBand>
 
         <SectionDivider />
 
@@ -126,9 +129,10 @@ export default function HomePage() {
         <SectionDivider />
 
         {/* Mobile */}
-        <section className="bg-brand-navy-light/5">
+        <NavyBand>
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
             <SectionHeading
+              dark
               eyebrow="Mobile"
               title="iOS and Android, one codebase"
               intro={MOBILE_NOTE}
@@ -148,7 +152,7 @@ export default function HomePage() {
               </Card>
             </div>
           </div>
-        </section>
+        </NavyBand>
 
         <SectionDivider />
 

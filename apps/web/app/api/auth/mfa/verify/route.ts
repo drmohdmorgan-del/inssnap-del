@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMfaToken } from "@inssnapp/auth";
 import { getAuthStore } from "../../../../../lib/auth-store";
-import { issueSessionResponse } from "../../../../../lib/auth-helpers";
+import { issueSessionResponse, isMobileLoginAllowed } from "../../../../../lib/auth-helpers";
 import { db } from "../../../../../lib/db";
 import {
   checkRateLimit,
@@ -67,5 +67,19 @@ export async function POST(req: NextRequest) {
     actorEmail: user.email,
     detail: "mfa",
   });
+  // Platform authority: mobile tokens are only minted for the field roles.
+  if (issueToken === true && !isMobileLoginAllowed(user.role)) {
+    await db.securityEvents.insert({
+      organizationId: user.organizationId,
+      type: "login_denied",
+      actorUserId: user.id,
+      actorEmail: user.email,
+      detail: "mobile platform not authorized for role",
+    });
+    return NextResponse.json(
+      { error: "This account is not authorized for mobile sign-in." },
+      { status: 403 }
+    );
+  }
   return issueSessionResponse(user, { includeToken: issueToken === true });
 }

@@ -8,7 +8,7 @@ import { SiteHeader } from "../../components/marketing/SiteHeader";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { SectionDivider } from "../../components/marketing/SectionDivider";
 import { SiteFooter } from "../../components/marketing/SiteFooter";
-import { Card, CheckList, CtaBand, SectionHeading } from "../../components/marketing/marketing-ui";
+import { Card, CheckList, CtaBand, NavyBand, SectionHeading } from "../../components/marketing/marketing-ui";
 import { MOBILE_NOTE, SERVICE_CARDS } from "../../components/marketing/marketing-content";
 
 export const metadata: Metadata = {
@@ -22,15 +22,21 @@ export default function ServicesPage() {
     <div className="min-h-screen bg-white">
       <SiteHeader />
       <main>
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <div className="mb-8 flex justify-center">
-            <BrandMark className="h-16 w-16" />
+        <NavyBand>
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+            <div className="mb-8 flex justify-center">
+              <BrandMark className="h-16 w-16" />
+            </div>
+            <SectionHeading
+              dark
+              eyebrow="Services"
+              title="All services, one coordinated platform"
+              intro="INSSNAPP is a real-time leasing coordination layer for occupied residential units. These are the services being built for the pilot — management remains the system of record for property and unit eligibility throughout."
+            />
           </div>
-          <SectionHeading
-            eyebrow="Services"
-            title="All services, one coordinated platform"
-            intro="INSSNAPP is a real-time leasing coordination layer for occupied residential units. These are the services being built for the pilot — management remains the system of record for property and unit eligibility throughout."
-          />
+        </NavyBand>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
           <div className="mt-10 grid gap-5 md:grid-cols-2">
             {SERVICE_CARDS.map((service) => (
               <Card key={service.title} title={service.title}>
@@ -43,9 +49,10 @@ export default function ServicesPage() {
 
         <SectionDivider />
 
-        <section className="bg-brand-navy-light/5">
+        <NavyBand>
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <SectionHeading
+              dark
               eyebrow="Mobile"
               title="One Expo codebase, three experiences"
               intro={MOBILE_NOTE}
@@ -56,7 +63,7 @@ export default function ServicesPage() {
               <Card title="Broker">Assignment queue, check-in, completion, rating.</Card>
             </div>
           </div>
-        </section>
+        </NavyBand>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
           <div className="mb-8 flex justify-center">

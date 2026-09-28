@@ -154,8 +154,11 @@ describeMem("TASK-011 protected surfaces remain gated", () => {
     }
   });
 
-  it("/login page is untouched", () => {
+  it("/login page gates demo hint to dev only", () => {
     const src = readFileSync(join(__dirname, "..", "app", "login", "page.tsx"), "utf8");
-    expect(src).toContain("DEMO_ACCOUNTS");
+    expect(src).toContain("DATABASE_URL");
+    expect(src).not.toContain("DEMO_TOTP_SECRET");
+    const formSrc = readFileSync(join(__dirname, "..", "app", "login", "LoginForm.tsx"), "utf8");
+    expect(formSrc).toContain("showDemo");
   });
 });

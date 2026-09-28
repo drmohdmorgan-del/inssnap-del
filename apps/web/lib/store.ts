@@ -88,7 +88,7 @@ export interface SecurityEvent {
   id: string;
   /** NULL when the event cannot be attributed to an organization (unknown-email login attempt). */
   organizationId: string | null;
-  type: "login_failed" | "login_succeeded" | "mfa_failed" | "session_revoked";
+  type: "login_failed" | "login_succeeded" | "login_denied" | "mfa_failed" | "session_revoked";
   actorUserId: string | null;
   actorEmail: string | null;
   detail: string | null;
