@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Readability: shift the small end of the type scale up 2px.
+   text-xs 12px -> 14px (meta text, badges, table cells)
+   text-sm 14px -> 16px (body copy, card descriptions, labels, buttons)
+   Headings (text-lg and up) are untouched, keeping the hierarchy proportional. */
+@theme {
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+}
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -9,4 +18,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
 }
