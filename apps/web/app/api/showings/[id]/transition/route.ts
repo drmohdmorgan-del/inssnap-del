@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser, unauthorized } from "../../../../../lib/auth-helpers";
+import { loadAuthedShowing, transitionStatus } from "../../../../../lib/showing-api";
 import { engine } from "../../../../../lib/engine";
-import { db } from "../../../../../lib/db";
 import type { ShowingOutcome, Transition } from "@inssnapp/engine";
 
 const VALID_TRANSITIONS: Transition[] = [
@@ -18,28 +17,31 @@ const VALID_TRANSITIONS: Transition[] = [
   "EXPIRE",
 ];
 
+/**
+ * Generic transition endpoint (kept for the existing desktop views).
+ * Auth, tenant isolation, and the transition itself are shared with the
+ * named routes in lib/showing-api.ts; the engine remains the sole
+ * authority on state changes.
+ */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getSessionUser(req);
-  if (!user) return unauthorized();
-
   const { id } = await params;
-  const showing = await db.showings.get(id);
-  if (!showing) {
-    return NextResponse.json({ error: "Showing not found." }, { status: 404 });
-  }
-  // Tenant isolation at the API boundary (the engine enforces it too).
-  // 404 — not 403 — so callers cannot probe other organizations' records.
-  if (showing.organizationId !== user.organizationId) {
-    return NextResponse.json({ error: "Showing not found." }, { status: 404 });
-  }
+  const loaded = await loadAuthedShowing(req, id);
+  if (loaded.response) return loaded.response;
+  const { user } = loaded.ctx;
 
-  const body = await req.json().catch(() => ({}));
-  const transition = body.transition as Transition;
-  const idempotencyKey = (body.idempotencyKey as string) || crypto.randomUUID();
-  const outcome = body.outcome as ShowingOutcome | undefined;
-  const brokerUserId = body.brokerUserId as string | undefined;
+  const body = (await req.json().catch(() => ({}))) as {
+    transition?: Transition;
+    idempotencyKey?: string;
+    outcome?: ShowingOutcome;
+    brokerUserId?: string;
+  };
+  const { transition } = body;
+  const idempotencyKey =
+    typeof body.idempotencyKey === "string" && body.idempotencyKey
+      ? body.idempotencyKey
+      : crypto.randomUUID();
 
-  if (!VALID_TRANSITIONS.includes(transition)) {
+  if (!transition || !VALID_TRANSITIONS.includes(transition)) {
     return NextResponse.json({ error: "Unknown transition." }, { status: 400 });
   }
 
@@ -48,21 +50,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     transition,
     actor: { userId: user.userId, role: user.role, organizationId: user.organizationId },
     idempotencyKey,
-    outcome,
-    brokerUserId,
+    outcome: body.outcome,
+    brokerUserId: body.brokerUserId,
   });
 
   if (!result.ok) {
-    const status =
-      result.code === "NOT_FOUND"
-        ? 404
-        : result.code === "TENANT_ISOLATION" || result.code === "ROLE_FORBIDDEN"
-        ? 403
-        : result.code === "CONCURRENCY_CONFLICT"
-        ? 409
-        : 400;
-    return NextResponse.json({ error: result.message, code: result.code }, { status });
+    return NextResponse.json(
+      { error: result.message, code: result.code },
+      { status: transitionStatus(result.code) },
+    );
   }
 
-  return NextResponse.json({ showing: result.showing, event: result.event, replayed: result.replayed });
+  return NextResponse.json({
+    showing: result.showing,
+    event: result.event,
+    replayed: result.replayed,
+  });
 }

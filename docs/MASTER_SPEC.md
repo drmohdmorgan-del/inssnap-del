@@ -1,7 +1,7 @@
 # INSSNAPP Master Specification
 
 **Version:** September 2026
-**Status:** Foundation (TASK-001/002 complete, TASK-003 in progress)
+**Status:** Foundation (TASK-001/002/003 complete)
 
 ## 1. Vision
 
@@ -55,7 +55,7 @@ The Showing Engine is the sole authority permitted to change showing state.
 |------|-------|--------|
 | TASK-001 | Monorepo foundation, Management + Control Center foundations, Engine state defs, PMS boundary, screening boundary, roles, CI | ✅ Complete |
 | TASK-002 | PostgreSQL schema, organizations, authentication, RBAC, tenant isolation | ✅ Complete (2026-09-28: argon2id hashing, real TOTP MFA for privileged roles, server-side sessions, per-org email uniqueness, idempotent `npm run db:migrate`; production still runs the in-memory store — live Postgres wiring is TASK-003, `DATABASE_URL` undecided) |
-| TASK-003 | Persistent Showing Engine APIs, event model, locking, idempotency, audit | 🔄 In progress |
+| TASK-003 | Persistent Showing Engine APIs, event model, locking, idempotency, audit | ✅ Complete (2026-09-28: named lifecycle routes under /api/showings — request, resident accept/decline, broker assign/accept/decline, confirm, check-in, complete, outcome — all delegating to the engine; PostgresStore is the live data path when DATABASE_URL is set, in-memory remains the dev fallback; showing_locks table — CONFIRM acquires the exclusive unit lock, COMPLETE releases it, concurrent confirms serialize on INSERT … ON CONFLICT; caller idempotency keys persisted with audit events; cross-org reads return 404; 30 tests: 14 engine, 7 Postgres persistence, 9 API route) |
 | TASK-004 | Resident role experience | ⏳ Pending |
 | TASK-005 | Prospect role experience | ⏳ Pending |
 | TASK-006 | Broker role experience | ⏳ Pending |

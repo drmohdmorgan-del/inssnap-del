@@ -38,6 +38,27 @@ const DEMO_USERS = [
   { email: "manager2@inssnapp.demo", fullName: "Riley Park", role: "management", mfa: false, org: 1 },
 ] as const;
 
+// TASK-003: portfolio + resident links so the Postgres path exercises the
+// same showing lifecycle as the in-memory seed (mirrors apps/web/lib/store.ts).
+const DEMO_PROPERTIES = [
+  { name: "The Alder", address: "120 Alder St, Seattle, WA", org: 0 },
+  { name: "Maple Court", address: "88 Maple Ave, Bellevue, WA", org: 0 },
+  { name: "Harbor Lofts", address: "1 Harbor Blvd, Tacoma, WA", org: 1 },
+] as const;
+
+const DEMO_UNITS: {
+  label: string;
+  property: number;
+  eligible: boolean;
+  residentAvailable: boolean;
+  residentEmail?: string;
+}[] = [
+  { label: "4B", property: 0, eligible: true, residentAvailable: true, residentEmail: "resident@inssnapp.demo" },
+  { label: "2A", property: 0, eligible: true, residentAvailable: true, residentEmail: "resident@inssnapp.demo" },
+  { label: "1C", property: 1, eligible: true, residentAvailable: false },
+  { label: "PH1", property: 2, eligible: true, residentAvailable: true },
+];
+
 export async function seedDemo(store: PostgresStore): Promise<void> {
   const { default: pg } = await import("pg");
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -76,8 +97,65 @@ export async function seedDemo(store: PostgresStore): Promise<void> {
     );
   }
 
+  await seedPortfolio(pool, orgIds);
+
   await pool.end();
   console.log(`Seeded ${DEMO_ORGS.length} orgs and ${DEMO_USERS.length} demo users (password: pw).`);
+}
+
+async function seedPortfolio(pool: any, orgIds: string[]): Promise<void> {
+  const propertyIds: string[] = [];
+  for (const p of DEMO_PROPERTIES) {
+    const orgId = orgIds[p.org];
+    const existing = await pool.query(
+      `SELECT id FROM properties WHERE organization_id = $1 AND name = $2`,
+      [orgId, p.name],
+    );
+    if (existing.rows[0]) {
+      propertyIds.push(existing.rows[0].id);
+    } else {
+      const res = await pool.query(
+        `INSERT INTO properties (organization_id, name, address) VALUES ($1, $2, $3) RETURNING id`,
+        [orgId, p.name, p.address],
+      );
+      propertyIds.push(res.rows[0].id);
+    }
+  }
+
+  for (const u of DEMO_UNITS) {
+    const propertyId = propertyIds[u.property];
+    const orgId = orgIds[DEMO_PROPERTIES[u.property].org];
+    const existing = await pool.query(
+      `SELECT id FROM units WHERE property_id = $1 AND label = $2`,
+      [propertyId, u.label],
+    );
+    let unitId: string;
+    if (existing.rows[0]) {
+      unitId = existing.rows[0].id;
+    } else {
+      const res = await pool.query(
+        `INSERT INTO units (organization_id, property_id, label, eligible, resident_available)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [orgId, propertyId, u.label, u.eligible, u.residentAvailable],
+      );
+      unitId = res.rows[0].id;
+    }
+    if (u.residentEmail) {
+      const userRes = await pool.query(
+        `SELECT id FROM users WHERE organization_id = $1 AND email = $2`,
+        [orgId, u.residentEmail],
+      );
+      if (userRes.rows[0]) {
+        await pool.query(
+          `INSERT INTO residents (organization_id, user_id, unit_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id, unit_id) DO NOTHING`,
+          [orgId, userRes.rows[0].id, unitId],
+        );
+      }
+    }
+  }
+  console.log(`Seeded ${DEMO_PROPERTIES.length} properties and ${DEMO_UNITS.length} units (+ resident links).`);
 }
 
 async function main(): Promise<void> {

@@ -90,6 +90,19 @@ export const db = {
   },
 
   // ---- Showing engine persistence ----
+  residents: {
+    async byUnit(unitId: string) {
+      if (!usingPostgres) return mem.residents.byUnit(unitId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT user_id AS "userId", unit_id AS "unitId"
+         FROM residents WHERE unit_id = $1 LIMIT 1`,
+        [unitId],
+      );
+      return res.rows[0] ?? null;
+    },
+  },
+
   showings: {
     async get(id: string) {
       if (!usingPostgres) return mem.showings.get(id);
@@ -121,6 +134,12 @@ export const db = {
       return res.rows[0];
     },
 
+    async remove(id: string) {
+      if (!usingPostgres) return mem.showings.remove(id);
+      const pool = await getPool();
+      await pool.query(`DELETE FROM showings WHERE id = $1`, [id]);
+    },
+
     async list(organizationId: string) {
       if (!usingPostgres) return mem.showings.list(organizationId);
       const pool = await getPool();
@@ -128,7 +147,7 @@ export const db = {
         `SELECT id, organization_id AS "organizationId", unit_id AS "unitId",
                 resident_user_id AS "residentUserId", prospect_user_id AS "prospectUserId",
                 broker_user_id AS "brokerUserId", broker_required AS "brokerRequired",
-                state, outcome, version, updated_at AS "updatedAt"
+                state, outcome, version, created_at AS "createdAt", updated_at AS "updatedAt"
          FROM showings WHERE organization_id = $1 ORDER BY created_at DESC`,
         [organizationId],
       );

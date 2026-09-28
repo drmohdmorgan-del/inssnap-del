@@ -24,7 +24,7 @@ inssnapp/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start the Next.js dev server |
-| `npm test` | Run Showing Engine + auth tests |
+| `npm test` | Run engine + auth + db + web tests (db tests skip without `DATABASE_URL`; web route tests run the in-memory path) |
 | `npm run build` | Production build |
 | `npm run db:migrate` | Apply the PostgreSQL schema (requires `DATABASE_URL`, idempotent) |
 | `npm run db:seed` | Seed demo orgs/users — dev only, requires `DATABASE_URL`, refuses production |

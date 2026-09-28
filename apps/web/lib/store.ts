@@ -45,6 +45,11 @@ export interface Org {
   name: string;
 }
 
+export interface ResidentLink {
+  userId: string;
+  unitId: string;
+}
+
 // DEV-ONLY demo credentials. argon2id hash of the password "pw", generated
 // at seed time for TASK-002 (see packages/auth/src/password.ts).
 // The admin TOTP secret lives in ./demo.ts (dev-only fixed secret so local
@@ -57,6 +62,7 @@ interface StoreData {
   users: User[];
   properties: Property[];
   units: Unit[];
+  residents: ResidentLink[];
   showings: Map<string, Showing>;
   events: ShowingEvent[];
   sessions: Map<string, { tokenHash: string; userId: string; organizationId: string; expiresAt: number }>;
@@ -88,6 +94,11 @@ function seed(): StoreData {
       { id: "unit_3", organizationId: "org_1", propertyId: "prop_2", label: "1C", pmsExternalId: "ENT-20011", eligible: true, residentAvailable: false },
       { id: "unit_4", organizationId: "org_2", propertyId: "prop_3", label: "PH1", pmsExternalId: "APP-30007", eligible: true, residentAvailable: true },
     ],
+    // Verified resident ↔ unit links (TASK-003; mirrors the `residents` table).
+    residents: [
+      { userId: "u_resident", unitId: "unit_1" },
+      { userId: "u_resident", unitId: "unit_2" },
+    ],
     showings: new Map(),
     events: [],
     sessions: new Map(),
@@ -113,6 +124,12 @@ export const store = {
     },
     get(id: string): Org | null {
       return db.orgs.find((o) => o.id === id) ?? null;
+    },
+  },
+
+  residents: {
+    byUnit(unitId: string): ResidentLink | null {
+      return db.residents.find((r) => r.unitId === unitId) ?? null;
     },
   },
 
@@ -174,6 +191,9 @@ export const store = {
     },
     list(organizationId: string): Showing[] {
       return [...db.showings.values()].filter((s) => s.organizationId === organizationId);
+    },
+    remove(id: string): void {
+      db.showings.delete(id);
     },
     byUnitActive(unitId: string): Showing | null {
       const active = ["REQUESTED", "RESIDENT_ACCEPTED", "BROKER_GATE", "CONFIRMED", "IN_PROGRESS", "COMPLETED"] as ShowingState[];

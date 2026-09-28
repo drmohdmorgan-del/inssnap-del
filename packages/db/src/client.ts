@@ -306,4 +306,38 @@ export class PostgresStore implements AuthStore {
     );
     return res.rows[0] ?? null;
   }
+
+  // ---- Unit/showing locks (TASK-003) ---------------------------------------
+  // Atomic acquisition: the primary key on showing_locks.unit_id makes the
+  // INSERT the serialization point — exactly one concurrent CONFIRM wins.
+  async tryAcquireUnitLock(
+    unitId: string,
+    showingId: string,
+    organizationId: string,
+  ): Promise<boolean> {
+    const pool = await this.pool_();
+    const res = await pool.query(
+      `INSERT INTO showing_locks (unit_id, showing_id, organization_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (unit_id) DO NOTHING`,
+      [unitId, showingId, organizationId],
+    );
+    return (res.rowCount ?? 0) === 1;
+  }
+
+  async releaseUnitLock(showingId: string): Promise<void> {
+    const pool = await this.pool_();
+    await pool.query(`DELETE FROM showing_locks WHERE showing_id = $1`, [showingId]);
+  }
+
+  /** Returns the lock row for a unit, if one is held (introspection/testing). */
+  async getUnitLock(unitId: string): Promise<{ showingId: string; organizationId: string } | null> {
+    const pool = await this.pool_();
+    const res = await pool.query(
+      `SELECT showing_id AS "showingId", organization_id AS "organizationId"
+       FROM showing_locks WHERE unit_id = $1 LIMIT 1`,
+      [unitId],
+    );
+    return res.rows[0] ?? null;
+  }
 }

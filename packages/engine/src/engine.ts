@@ -18,6 +18,20 @@ export interface ShowingStore {
   ): Promise<Showing | null>;
   /** Returns the original event for an idempotency key, if one exists. */
   getIdempotent?(idempotencyKey: string): Promise<ShowingEvent | null>;
+  /**
+   * Unit/showing lock (TASK-003). Acquires the exclusive lock for `unitId`
+   * on behalf of `showingId`. Returns false when another active workflow
+   * already holds the lock — the acquisition must be atomic (e.g. a single
+   * INSERT ... ON CONFLICT DO NOTHING) so concurrent CONFIRM attempts
+   * cannot both succeed.
+   */
+  tryAcquireUnitLock?(
+    unitId: string,
+    showingId: string,
+    organizationId: string,
+  ): Promise<boolean>;
+  /** Releases the lock held by `showingId`, if any. */
+  releaseUnitLock?(showingId: string): Promise<void>;
 }
 
 export interface TransitionRequest {
@@ -50,7 +64,10 @@ function newId(prefix: string): string {
  *  3. Tenant isolation — the actor belongs to the showing's organization.
  *  4. Role policy   — the actor's role may initiate this transition.
  *  5. State legality — the transition must be valid from the current state.
- *  6. Concurrency  — optimistic locking prevents double-booking/conflicts.
+ *  6. Concurrency  — optimistic locking prevents double-booking/conflicts;
+ *                    CONFIRM additionally acquires the exclusive unit/showing
+ *                    lock (released on COMPLETE), so two active workflows can
+ *                    never hold the same unit.
  *  7. Audit        — every material transition emits an immutable event.
  */
 export class ShowingEngine {
@@ -62,6 +79,13 @@ export class ShowingEngine {
     // (1) Idempotency: a repeated request replays the original result safely.
     const existing = await this.store.getIdempotent?.(idempotencyKey);
     if (existing) {
+      if (existing.showingId !== showingId) {
+        return {
+          ok: false,
+          code: "VALIDATION",
+          message: "Idempotency key was already used for a different showing.",
+        };
+      }
       const showing = await this.store.getShowing(showingId);
       if (showing) {
         return { ok: true, showing, event: existing, replayed: true };
@@ -118,8 +142,28 @@ export class ShowingEngine {
       };
     }
 
-    // (6) Concurrency — optimistic lock on version.
+    // (6) Concurrency — optimistic lock on version, plus the unit/showing
+    // lock: CONFIRM acquires the exclusive lock for the unit so conflicting
+    // active workflows cannot both proceed (double-booking protection).
     const to = nextState(showing.state, transition)!;
+    let lockAcquired = false;
+    if (to === "CONFIRMED") {
+      const acquired = await this.store.tryAcquireUnitLock?.(
+        showing.unitId,
+        showing.id,
+        showing.organizationId,
+      );
+      // A store without lock support (legacy) behaves as "acquired".
+      if (acquired === false) {
+        return {
+          ok: false,
+          code: "UNIT_LOCKED",
+          message: "Unit is already locked by another active showing workflow.",
+        };
+      }
+      lockAcquired = true;
+    }
+
     const patch: Partial<Pick<Showing, "state" | "outcome" | "prospectUserId" | "brokerUserId">> = {
       state: to,
     };
@@ -129,11 +173,21 @@ export class ShowingEngine {
 
     const committed = await this.store.commitShowing(showing.id, showing.version, patch);
     if (!committed) {
+      // Never leave an orphan lock behind when the state write loses the race.
+      if (lockAcquired) {
+        await this.store.releaseUnitLock?.(showing.id);
+      }
       return {
         ok: false,
         code: "CONCURRENCY_CONFLICT",
         message: "Concurrent modification detected; retry the request.",
       };
+    }
+
+    // Completion releases the unit/showing lock, enabling the outcome step
+    // and freeing the unit for future workflows.
+    if (transition === "COMPLETE") {
+      await this.store.releaseUnitLock?.(showing.id);
     }
 
     // (7) Audit — immutable event with actor, org, timestamp, state change.

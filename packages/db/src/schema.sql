@@ -190,6 +190,19 @@ CREATE TABLE IF NOT EXISTS showing_events (
 CREATE INDEX IF NOT EXISTS showing_events_org_idx ON showing_events (organization_id);
 CREATE INDEX IF NOT EXISTS showing_events_showing_idx ON showing_events (showing_id);
 
+-- ---- Showing locks (TASK-003) ------------------------------------------------------
+-- A unit/showing lock is created when a showing is CONFIRMED and released
+-- when it is COMPLETED. The primary key on unit_id guarantees at most one
+-- active workflow per unit: concurrent CONFIRM attempts serialize on the
+-- INSERT ... ON CONFLICT path and the loser fails closed (UNIT_LOCKED).
+CREATE TABLE IF NOT EXISTS showing_locks (
+  unit_id         UUID PRIMARY KEY REFERENCES units(id),
+  showing_id      UUID NOT NULL REFERENCES showings(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  locked_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS showing_locks_showing_idx ON showing_locks (showing_id);
+
 -- ---- PMS integration boundary ------------------------------------------------
 CREATE TABLE IF NOT EXISTS pms_adapters (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

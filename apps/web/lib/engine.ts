@@ -1,43 +1,61 @@
-import { ShowingEngine } from "@inssnapp/engine";
+import { ShowingEngine, type ShowingStore } from "@inssnapp/engine";
+import { PostgresStore } from "@inssnapp/db";
 import { db } from "./db";
+import { store as mem } from "./store";
 
 /**
  * Wires the Authoritative Showing Engine to the persistence boundary.
  *
- * Works with both in-memory (dev/demo) and PostgreSQL (TASK-002/003) stores
- * through the unified db layer. The engine itself is unchanged.
+ * When DATABASE_URL is set, the engine persists through PostgresStore
+ * (PostgreSQL: showings, audit events, idempotency keys, unit locks).
+ * Otherwise the in-memory dev store is used with identical semantics.
+ * The engine itself is unchanged across both paths.
  */
-export const engine = new ShowingEngine({
-  getShowing: (id) => db.showings.get(id),
-  insertEvent: (e) => db.showingEvents.insert(e),
-  getIdempotent: (key) => db.showingEvents.findByIdempotencyKey(key),
-  commitShowing: async (id, expectedVersion, patch) => {
-    if (process.env.DATABASE_URL) {
-      // Postgres path: use the pool directly
-      return import("pg").then(({ default: pg }) => {
-        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-        return pool.query(
-          `UPDATE showings
-           SET state = COALESCE($3, state),
-               outcome = COALESCE($4, outcome),
-               prospect_user_id = COALESCE($5, prospect_user_id),
-               broker_user_id = COALESCE($6, broker_user_id),
-               version = version + 1,
-               updated_at = now()
-           WHERE id = $1 AND version = $2
-           RETURNING id, organization_id AS "organizationId", unit_id AS "unitId",
-                     resident_user_id AS "residentUserId", prospect_user_id AS "prospectUserId",
-                     broker_user_id AS "brokerUserId", broker_required AS "brokerRequired",
-                     state, outcome, version, created_at AS "createdAt", updated_at AS "updatedAt"`,
-          [id, expectedVersion, patch.state ?? null, patch.outcome ?? null, patch.prospectUserId ?? null, patch.brokerUserId ?? null],
-        ).then((res) => res.rows[0] ?? null);
-      });
-    }
-    // In-memory path
-    const s = await db.showings.get(id);
-    if (!s || s.version !== expectedVersion) return null;
-    const updated = { ...s, ...patch, version: s.version + 1, updatedAt: new Date().toISOString() };
-    await db.showings.set(id, updated);
-    return updated;
-  },
-});
+
+function memAdapter(): ShowingStore {
+  // Module-level lock map: single-threaded Node makes check-then-set
+  // atomic, mirroring the Postgres INSERT ... ON CONFLICT semantics.
+  // Keyed by unitId -> showingId.
+  const locks = new Map<string, string>();
+
+  return {
+    getShowing: (id) => db.showings.get(id),
+    insertEvent: (e) => db.showingEvents.insert(e),
+    getIdempotent: (key) => db.showingEvents.findByIdempotencyKey(key),
+    commitShowing: async (id, expectedVersion, patch) => {
+      const s = await db.showings.get(id);
+      if (!s || s.version !== expectedVersion) return null;
+      const updated = {
+        ...s,
+        ...patch,
+        version: s.version + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      await db.showings.set(id, updated);
+      return updated;
+    },
+    tryAcquireUnitLock: async (unitId, showingId) => {
+      if (locks.has(unitId)) return false;
+      locks.set(unitId, showingId);
+      return true;
+    },
+    releaseUnitLock: async (showingId) => {
+      for (const [unitId, holder] of locks) {
+        if (holder === showingId) locks.delete(unitId);
+      }
+    },
+  };
+}
+
+function createStore(): ShowingStore {
+  if (process.env.DATABASE_URL) {
+    // One PostgresStore per process (it pools internally); the pool is
+    // shared on globalThis so Next.js route bundling reuses it.
+    const g = globalThis as typeof globalThis & { __inssnappPgEngineStore?: PostgresStore };
+    if (!g.__inssnappPgEngineStore) g.__inssnappPgEngineStore = new PostgresStore();
+    return g.__inssnappPgEngineStore;
+  }
+  return memAdapter();
+}
+
+export const engine = new ShowingEngine(createStore());

@@ -14,6 +14,7 @@ import type {
 class MemoryStore {
   showings = new Map<string, Showing>();
   events: ShowingEvent[] = [];
+  locks = new Map<string, string>(); // unitId -> showingId
 
   async getShowing(id: string) {
     return this.showings.get(id) ?? null;
@@ -36,6 +37,16 @@ class MemoryStore {
   }
   async getIdempotent(key: string) {
     return this.events.find((e) => e.idempotencyKey === key) ?? null;
+  }
+  async tryAcquireUnitLock(unitId: string, showingId: string) {
+    if (this.locks.has(unitId)) return false;
+    this.locks.set(unitId, showingId);
+    return true;
+  }
+  async releaseUnitLock(showingId: string) {
+    for (const [unitId, holder] of this.locks) {
+      if (holder === showingId) this.locks.delete(unitId);
+    }
   }
 }
 
@@ -206,5 +217,127 @@ describe("ShowingEngine", () => {
     });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("CONCURRENCY_CONFLICT");
+  });
+
+  it("rejects an idempotency key already used for a different showing", async () => {
+    store.showings.set("sh_a", makeShowing({ id: "sh_a" }));
+    store.showings.set("sh_b", makeShowing({ id: "sh_b" }));
+    const first = await engine.transition({
+      showingId: "sh_a", transition: "PROSPECT_REQUEST",
+      actor: actor("prospect", "org_1", "user_prospect"), idempotencyKey: "shared-key",
+    });
+    expect(first.ok).toBe(true);
+    const second = await engine.transition({
+      showingId: "sh_b", transition: "PROSPECT_REQUEST",
+      actor: actor("prospect", "org_1", "user_prospect"), idempotencyKey: "shared-key",
+    });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe("VALIDATION");
+    expect(store.events).toHaveLength(1);
+  });
+});
+
+describe("ShowingEngine unit/showing locks (TASK-003)", () => {
+  let store: MemoryStore;
+  let engine: ShowingEngine;
+
+  beforeEach(() => {
+    store = new MemoryStore();
+    engine = new ShowingEngine(store);
+  });
+
+  /** Drives a showing to RESIDENT_ACCEPTED (no broker) in one helper. */
+  async function toAccepted(id: string, unitId = "unit_1") {
+    store.showings.set(id, makeShowing({ id, unitId }));
+    const prospect = actor("prospect", "org_1", `prospect_${id}`);
+    await engine.transition({
+      showingId: id, transition: "PROSPECT_REQUEST", actor: prospect,
+      idempotencyKey: `${id}-req`,
+    });
+    const accepted = await engine.transition({
+      showingId: id, transition: "RESIDENT_ACCEPT", actor: actor("resident"),
+      idempotencyKey: `${id}-accept`,
+    });
+    expect(accepted.ok).toBe(true);
+  }
+
+  it("acquires the unit lock on CONFIRM and blocks a conflicting workflow", async () => {
+    await toAccepted("sh_a");
+    await toAccepted("sh_b");
+
+    const first = await engine.transition({
+      showingId: "sh_a", transition: "CONFIRM", actor: actor("management"),
+      idempotencyKey: "sh_a-confirm",
+    });
+    expect(first.ok).toBe(true);
+    expect(store.locks.get("unit_1")).toBe("sh_a");
+
+    const second = await engine.transition({
+      showingId: "sh_b", transition: "CONFIRM", actor: actor("management"),
+      idempotencyKey: "sh_b-confirm",
+    });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe("UNIT_LOCKED");
+    // The losing workflow is untouched and holds no lock.
+    expect((await store.getShowing("sh_b"))?.state).toBe("RESIDENT_ACCEPTED");
+    expect(store.events.filter((e) => e.transition === "CONFIRM")).toHaveLength(1);
+  });
+
+  it("releases the unit lock on COMPLETE, freeing the unit", async () => {
+    await toAccepted("sh_a");
+    await engine.transition({
+      showingId: "sh_a", transition: "CONFIRM", actor: actor("management"),
+      idempotencyKey: "sh_a-confirm",
+    });
+    expect(store.locks.has("unit_1")).toBe(true);
+
+    await engine.transition({
+      showingId: "sh_a", transition: "CHECK_IN", actor: actor("resident"),
+      idempotencyKey: "sh_a-checkin",
+    });
+    const completed = await engine.transition({
+      showingId: "sh_a", transition: "COMPLETE", actor: actor("resident"),
+      idempotencyKey: "sh_a-complete",
+    });
+    expect(completed.ok).toBe(true);
+    expect(store.locks.has("unit_1")).toBe(false);
+
+    // A later workflow for the same unit can now confirm.
+    await toAccepted("sh_b");
+    const confirm = await engine.transition({
+      showingId: "sh_b", transition: "CONFIRM", actor: actor("management"),
+      idempotencyKey: "sh_b-confirm",
+    });
+    expect(confirm.ok).toBe(true);
+    expect(store.locks.get("unit_1")).toBe("sh_b");
+  });
+
+  it("releases the acquired lock when the state write loses the race", async () => {
+    await toAccepted("sh_a");
+    // Another writer bumps the version between the engine's read and write.
+    const original = store.commitShowing.bind(store);
+    store.commitShowing = async (id, version, patch) => {
+      const s = store.showings.get(id)!;
+      store.showings.set(id, { ...s, version: s.version + 1 });
+      return original(id, version, patch);
+    };
+    const res = await engine.transition({
+      showingId: "sh_a", transition: "CONFIRM", actor: actor("management"),
+      idempotencyKey: "sh_a-confirm-race",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe("CONCURRENCY_CONFLICT");
+    // No orphan lock: a retry after re-reading would be able to acquire.
+    expect(store.locks.has("unit_1")).toBe(false);
+  });
+
+  it("does not hold a lock for non-confirming transitions", async () => {
+    await toAccepted("sh_a");
+    expect(store.locks.has("unit_1")).toBe(false);
+    await engine.transition({
+      showingId: "sh_a", transition: "BROKER_ASSIGN", brokerUserId: "user_broker",
+      actor: actor("management"), idempotencyKey: "sh_a-assign",
+    });
+    expect(store.locks.has("unit_1")).toBe(false);
   });
 });
