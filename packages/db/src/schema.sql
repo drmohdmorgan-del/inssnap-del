@@ -234,3 +234,20 @@ CREATE TABLE IF NOT EXISTS security_events (
 ALTER TABLE security_events ALTER COLUMN organization_id DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS security_events_org_idx ON security_events (organization_id);
 CREATE INDEX IF NOT EXISTS security_events_at_idx ON security_events (at DESC);
+
+-- ---- Showing ratings (TASK-004/006) -------------------------------------------
+-- Post-completion participant feedback for a showing. Ratings never change
+-- showing state — the engine remains the sole authority on transitions.
+-- One rating per rater per showing.
+CREATE TABLE IF NOT EXISTS showing_ratings (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  showing_id      UUID NOT NULL REFERENCES showings(id) ON DELETE CASCADE,
+  rater_user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rater_role      TEXT NOT NULL,   -- 'resident' | 'broker'
+  stars           INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  comment         TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (showing_id, rater_user_id)
+);
+CREATE INDEX IF NOT EXISTS showing_ratings_showing_idx ON showing_ratings (showing_id);

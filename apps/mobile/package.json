@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "expo": "^57.0.0",
+    "expo-constants": "^18.0.0",
+    "expo-secure-store": "^15.0.0",
+    "expo-status-bar": "^3.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.4"
+  },
+  "description": "INSSNAPP mobile — one Expo codebase, three role-based experiences (resident, prospect, broker).",
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "hermes-compiler": "^250829098.0.19",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "main": "index.ts",
+  "name": "@inssnapp/mobile",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "version": "0.1.0"
+}

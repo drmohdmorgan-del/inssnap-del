@@ -50,6 +50,18 @@ export interface ResidentLink {
   unitId: string;
 }
 
+/** Post-completion rating of a showing by a participant (TASK-004/006). */
+export interface ShowingRating {
+  id: string;
+  organizationId: string;
+  showingId: string;
+  raterUserId: string;
+  raterRole: string;
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 export interface PmsAdapter {
   id: string;
   organizationId: string;
@@ -87,6 +99,7 @@ interface StoreData {
   securityEvents: SecurityEvent[];
   showings: Map<string, Showing>;
   events: ShowingEvent[];
+  ratings: ShowingRating[];
   sessions: Map<string, { tokenHash: string; userId: string; organizationId: string; expiresAt: number }>;
   seq: number;
 }
@@ -136,6 +149,7 @@ function seed(): StoreData {
     securityEvents: [],
     showings: new Map(),
     events: [],
+    ratings: [],
     sessions: new Map(),
     seq: 100,
   };
@@ -165,6 +179,10 @@ export const store = {
   residents: {
     byUnit(unitId: string): ResidentLink | null {
       return db.residents.find((r) => r.unitId === unitId) ?? null;
+    },
+    /** All resident ↔ unit links for one user (TASK-004: resident self-service). */
+    byUser(userId: string): ResidentLink[] {
+      return db.residents.filter((r) => r.userId === userId);
     },
     /** Links whose unit belongs to the given organization. */
     byOrg(organizationId: string): { userId: string; unitId: string }[] {
@@ -364,6 +382,26 @@ export const store = {
     },
     findByIdempotencyKey(key: string): ShowingEvent | null {
       return db.events.find((e) => e.idempotencyKey === key) ?? null;
+    },
+  },
+
+  /**
+   * Post-completion showing ratings (TASK-004/006). Ratings never change
+   * showing state — the engine remains the sole authority on transitions.
+   * One rating per rater per showing (409 on duplicate at the route layer).
+   */
+  ratings: {
+    insert(e: Omit<ShowingRating, "id" | "createdAt">): ShowingRating {
+      const rating: ShowingRating = {
+        ...e,
+        id: newId("rtg"),
+        createdAt: new Date().toISOString(),
+      };
+      db.ratings.push(rating);
+      return rating;
+    },
+    byShowing(showingId: string): ShowingRating[] {
+      return db.ratings.filter((r) => r.showingId === showingId);
     },
   },
 

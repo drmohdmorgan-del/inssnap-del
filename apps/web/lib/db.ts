@@ -67,6 +67,17 @@ export interface PmsAdapterRow {
   lastSyncAt: string | null;
 }
 
+export interface RatingRow {
+  id: string;
+  organizationId: string;
+  showingId: string;
+  raterUserId: string;
+  raterRole: string;
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 export const usingPostgres = Boolean(process.env.DATABASE_URL);
 
 export async function migrate() {
@@ -298,6 +309,18 @@ export const db = {
       return res.rows[0] ?? null;
     },
 
+    /** All resident ↔ unit links for one user (TASK-004 resident self-service). */
+    async byUser(userId: string) {
+      if (!usingPostgres) return mem.residents.byUser(userId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT user_id AS "userId", unit_id AS "unitId"
+         FROM residents WHERE user_id = $1`,
+        [userId],
+      );
+      return res.rows;
+    },
+
     /**
      * Enrolled residents for an organization: user identity joined with the
      * linked unit and property. Powers the management "Residents" list and
@@ -339,6 +362,100 @@ export const db = {
          WHERE r.organization_id = $1
          ORDER BY u.full_name`,
         [organizationId],
+      );
+      return res.rows;
+    },
+
+    /**
+     * The caller's own resident enrollment (TASK-004): user identity joined
+     * with each linked unit. Tenant-scoped by the caller's organization —
+     * a link in another org can never leak through this path.
+     */
+    async byUserDetailed(userId: string, organizationId: string): Promise<ResidentDetailRow[]> {
+      if (!usingPostgres) {
+        const links = mem.residents.byUser(userId);
+        return links
+          .map((l) => {
+            const u = mem.users.byId(l.userId);
+            const unit = mem.units.byId(l.unitId);
+            const property = unit ? mem.properties.byId(unit.propertyId) : null;
+            if (!u || !unit || unit.organizationId !== organizationId) return null;
+            return {
+              userId: u.id,
+              email: u.email,
+              fullName: u.fullName,
+              unitId: unit.id,
+              unitLabel: unit.label,
+              propertyName: property?.name ?? "",
+              eligible: unit.eligible,
+              residentAvailable: unit.residentAvailable,
+              verified: true,
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT u.id AS "userId", u.email, u.full_name AS "fullName",
+                un.id AS "unitId", un.label AS "unitLabel",
+                p.name AS "propertyName", un.eligible AS "eligible",
+                un.resident_available AS "residentAvailable", r.verified
+         FROM residents r
+         JOIN users u ON u.id = r.user_id
+         JOIN units un ON un.id = r.unit_id
+         JOIN properties p ON p.id = un.property_id
+         WHERE r.user_id = $1 AND r.organization_id = $2
+         ORDER BY un.label`,
+        [userId, organizationId],
+      );
+      return res.rows;
+    },
+  },
+
+  /**
+   * Post-completion showing ratings (TASK-004/006). Ratings are participant
+   * feedback — they never change showing state.
+   */
+  ratings: {
+    async insert(e: {
+      organizationId: string;
+      showingId: string;
+      raterUserId: string;
+      raterRole: string;
+      stars: number;
+      comment: string | null;
+    }): Promise<RatingRow> {
+      if (!usingPostgres)
+        return mem.ratings.insert({
+          organizationId: e.organizationId,
+          showingId: e.showingId,
+          raterUserId: e.raterUserId,
+          raterRole: e.raterRole,
+          stars: e.stars,
+          comment: e.comment,
+        });
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO showing_ratings
+           (organization_id, showing_id, rater_user_id, rater_role, stars, comment)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, organization_id AS "organizationId",
+                   showing_id AS "showingId", rater_user_id AS "raterUserId",
+                   rater_role AS "raterRole", stars, comment, created_at AS "createdAt"`,
+        [e.organizationId, e.showingId, e.raterUserId, e.raterRole, e.stars, e.comment],
+      );
+      return res.rows[0];
+    },
+
+    async byShowing(showingId: string): Promise<RatingRow[]> {
+      if (!usingPostgres) return mem.ratings.byShowing(showingId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                showing_id AS "showingId", rater_user_id AS "raterUserId",
+                rater_role AS "raterRole", stars, comment, created_at AS "createdAt"
+         FROM showing_ratings WHERE showing_id = $1 ORDER BY created_at`,
+        [showingId],
       );
       return res.rows;
     },

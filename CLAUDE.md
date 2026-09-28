@@ -14,6 +14,14 @@ npm run dev          # http://localhost:3000
 npm test             # Engine tests
 ```
 
+## Mobile (TASK-004/005/006)
+
+One Expo codebase (`apps/mobile`) with role-based Resident / Prospect /
+Broker experiences. Run `npx expo start` in `apps/mobile` with the web
+backend reachable; see `apps/mobile/README.md` for the API-URL setup.
+Mobile code never ships in the web bundle (`npm run build` is web-only);
+`npm test` and `npm run typecheck` (tsc -b) both cover `apps/mobile`.
+
 ## Demo Login
 
 Password for all accounts: `pw`

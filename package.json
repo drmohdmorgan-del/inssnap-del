@@ -2,7 +2,7 @@
   "name": "inssnapp",
   "version": "0.1.0",
   "private": true,
-  "description": "INSSNAPP — Resident-Powered Leasing Infrastructure. Monorepo foundation.",
+  "description": "INSSNAPP \u2014 Resident-Powered Leasing Infrastructure. Monorepo foundation.",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run dev -w apps/web",
     "build": "npm run build -w apps/web",
-    "test": "npm run test -w @inssnapp/engine && npm run test -w @inssnapp/auth && npm run test -w @inssnapp/db && npm run test -w @inssnapp/web",
+    "test": "npm run test -w @inssnapp/engine && npm run test -w @inssnapp/auth && npm run test -w @inssnapp/db && npm run test -w @inssnapp/web && npm run test -w @inssnapp/mobile",
     "typecheck": "tsc -b --pretty",
     "db:migrate": "node packages/db/src/migrate.ts",
     "db:seed": "node packages/db/src/seed.ts"
