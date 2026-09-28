@@ -120,17 +120,16 @@ export const usingPostgres = Boolean(process.env.DATABASE_URL);
 export async function migrate() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
   const { default: pg } = await import("pg");
-  const { readFile } = await import("node:fs/promises");
-  const { join, dirname } = await import("node:path");
+  // Schema is embedded at build time (see scripts/embed-schema.mjs) so the
+  // serverless bundle carries it without fs access to the source tree.
+  const { SCHEMA_SQL } = await import("./schema-embedded");
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
     await client.query("BEGIN");
     // Serialize concurrent boot-time migrations (multiple cold starts).
     await client.query("SELECT pg_advisory_xact_lock(hashtext('inssnapp_schema_migrate'))");
-    const schemaPath = join(process.cwd(), "packages/db/src/schema.sql");
-    const sql = await readFile(schemaPath, "utf8");
-    await client.query(sql);
+    await client.query(SCHEMA_SQL);
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
