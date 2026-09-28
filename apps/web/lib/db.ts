@@ -126,6 +126,8 @@ export async function migrate() {
   await client.connect();
   try {
     await client.query("BEGIN");
+    // Serialize concurrent boot-time migrations (multiple cold starts).
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('inssnapp_schema_migrate'))");
     const schemaPath = join(process.cwd(), "packages/db/src/schema.sql");
     const sql = await readFile(schemaPath, "utf8");
     await client.query(sql);
