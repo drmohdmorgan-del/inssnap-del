@@ -50,6 +50,26 @@ export interface ResidentLink {
   unitId: string;
 }
 
+export interface PmsAdapter {
+  id: string;
+  organizationId: string;
+  provider: string;
+  /** 'sandbox' | 'connected' | 'error' | 'not_connected' */
+  status: string;
+  lastSyncAt: string | null;
+}
+
+export interface SecurityEvent {
+  id: string;
+  /** NULL when the event cannot be attributed to an organization (unknown-email login attempt). */
+  organizationId: string | null;
+  type: "login_failed" | "login_succeeded" | "mfa_failed" | "session_revoked";
+  actorUserId: string | null;
+  actorEmail: string | null;
+  detail: string | null;
+  at: string;
+}
+
 // DEV-ONLY demo credentials. argon2id hash of the password "pw", generated
 // at seed time for TASK-002 (see packages/auth/src/password.ts).
 // The admin TOTP secret lives in ./demo.ts (dev-only fixed secret so local
@@ -63,6 +83,8 @@ interface StoreData {
   properties: Property[];
   units: Unit[];
   residents: ResidentLink[];
+  pmsAdapters: PmsAdapter[];
+  securityEvents: SecurityEvent[];
   showings: Map<string, Showing>;
   events: ShowingEvent[];
   sessions: Map<string, { tokenHash: string; userId: string; organizationId: string; expiresAt: number }>;
@@ -99,6 +121,19 @@ function seed(): StoreData {
       { userId: "u_resident", unitId: "unit_1" },
       { userId: "u_resident", unitId: "unit_2" },
     ],
+    // PMS adapter boundary rows (TASK-007). Only org_1 has a configured
+    // adapter and it is sandbox-only; org_2 has none — the integrations
+    // status API reports this honestly instead of hardcoding "connected".
+    pmsAdapters: [
+      {
+        id: "pms_1",
+        organizationId: "org_1",
+        provider: "yardi",
+        status: "sandbox",
+        lastSyncAt: null,
+      },
+    ],
+    securityEvents: [],
     showings: new Map(),
     events: [],
     sessions: new Map(),
@@ -131,6 +166,61 @@ export const store = {
     byUnit(unitId: string): ResidentLink | null {
       return db.residents.find((r) => r.unitId === unitId) ?? null;
     },
+    /** Links whose unit belongs to the given organization. */
+    byOrg(organizationId: string): { userId: string; unitId: string }[] {
+      const unitIds = new Set(
+        db.units.filter((u) => u.organizationId === organizationId).map((u) => u.id),
+      );
+      return db.residents.filter((r) => unitIds.has(r.unitId));
+    },
+  },
+
+  pmsAdapters: {
+    byOrg(organizationId: string): PmsAdapter[] {
+      return db.pmsAdapters.filter((a) => a.organizationId === organizationId);
+    },
+  },
+
+  securityEvents: {
+    insert(e: {
+      organizationId: string | null;
+      type: SecurityEvent["type"];
+      actorUserId?: string | null;
+      actorEmail?: string | null;
+      detail?: string | null;
+    }): SecurityEvent {
+      const event: SecurityEvent = {
+        id: newId("sec"),
+        at: new Date().toISOString(),
+        organizationId: e.organizationId,
+        type: e.type,
+        actorUserId: e.actorUserId ?? null,
+        actorEmail: e.actorEmail ?? null,
+        detail: e.detail ?? null,
+      };
+      db.securityEvents.push(event);
+      return event;
+    },
+    list(opts: {
+      organizationIds?: string[];
+      type?: string;
+      since?: string;
+      limit?: number;
+    }): SecurityEvent[] {
+      let events = [...db.securityEvents];
+      if (opts.organizationIds) {
+        const ids = new Set(opts.organizationIds);
+        // NULL-org events (e.g. unknown-email login attempts) are included
+        // whenever the caller is filtering at all — they are platform-wide
+        // signals, not attributable to a single organization.
+        events = events.filter((e) => e.organizationId === null || ids.has(e.organizationId));
+      }
+      if (opts.type) events = events.filter((e) => e.type === opts.type);
+      if (opts.since) events = events.filter((e) => e.at >= opts.since!);
+      events.sort((a, b) => (a.at < b.at ? 1 : -1));
+      if (opts.limit) events = events.slice(0, opts.limit);
+      return events;
+    },
   },
 
   users: {
@@ -149,6 +239,30 @@ export const store = {
     byOrg(organizationId: string): Property[] {
       return db.properties.filter((p) => p.organizationId === organizationId);
     },
+    byId(id: string): Property | null {
+      return db.properties.find((p) => p.id === id) ?? null;
+    },
+    create(organizationId: string, name: string, address: string): Property {
+      const property: Property = { id: newId("prop"), organizationId, name, address };
+      db.properties.push(property);
+      return property;
+    },
+    patch(id: string, patch: Partial<Pick<Property, "name" | "address">>): Property | null {
+      const idx = db.properties.findIndex((p) => p.id === id);
+      if (idx === -1) return null;
+      db.properties[idx] = { ...db.properties[idx], ...patch };
+      return db.properties[idx];
+    },
+    remove(id: string): boolean {
+      const idx = db.properties.findIndex((p) => p.id === id);
+      if (idx === -1) return false;
+      db.properties.splice(idx, 1);
+      // Keep referential sanity: units of a deleted property are removed too.
+      for (let i = db.units.length - 1; i >= 0; i--) {
+        if (db.units[i].propertyId === id) db.units.splice(i, 1);
+      }
+      return true;
+    },
   },
 
   units: {
@@ -158,11 +272,40 @@ export const store = {
     byId(id: string): Unit | null {
       return db.units.find((u) => u.id === id) ?? null;
     },
-    patch(id: string, patch: Partial<Unit>): Unit | null {
+    create(
+      organizationId: string,
+      propertyId: string,
+      label: string,
+      opts: { eligible?: boolean; residentAvailable?: boolean; pmsExternalId?: string | null } = {},
+    ): Unit {
+      const unit: Unit = {
+        id: newId("unit"),
+        organizationId,
+        propertyId,
+        label,
+        pmsExternalId: opts.pmsExternalId ?? null,
+        eligible: opts.eligible ?? true,
+        residentAvailable: opts.residentAvailable ?? false,
+      };
+      db.units.push(unit);
+      return unit;
+    },
+    patch(
+      id: string,
+      patch: Partial<Pick<Unit, "label" | "eligible" | "residentAvailable">> & {
+        pmsExternalId?: string;
+      },
+    ): Unit | null {
       const idx = db.units.findIndex((u) => u.id === id);
       if (idx === -1) return null;
       db.units[idx] = { ...db.units[idx], ...patch };
       return db.units[idx];
+    },
+    remove(id: string): boolean {
+      const idx = db.units.findIndex((u) => u.id === id);
+      if (idx === -1) return false;
+      db.units.splice(idx, 1);
+      return true;
     },
   },
 

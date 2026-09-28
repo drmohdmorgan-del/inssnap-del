@@ -59,7 +59,7 @@ The Showing Engine is the sole authority permitted to change showing state.
 | TASK-004 | Resident role experience | ⏳ Pending |
 | TASK-005 | Prospect role experience | ⏳ Pending |
 | TASK-006 | Broker role experience | ⏳ Pending |
-| TASK-007 | Management live operations, Control Center workflow monitor | ⏳ Pending |
+| TASK-007 | Management live operations, Control Center workflow monitor | ✅ Complete (2026-09-28: tabbed Management desktop — live showings monitor with state filter, property/unit CRUD, eligibility toggle, residents list with participation status, reports (funnel, resident response times from audit events, participation), settings with truthful PMS status; Control Center (inssnapp_admin only, client + API) — org overview, workflow state distribution, filtered audit log, truthful integration status (hardcoded "Notifications: connected" badge removed), security events (login/MFA failures, session revocations recorded by auth routes); security_events table; cross-org 404 pattern on all new routes; 14 new API tests, all suites green) |
 | TASK-008 | PMS sandbox/adapter, notifications | ⏳ Pending |
 | TASK-009 | Checkr sandbox workflow, compliance-safe boundary | ⏳ Pending |
 | TASK-010 | Security hardening, E2E tests, load/concurrency tests, pilot deployment, release audit | ⏳ Pending |

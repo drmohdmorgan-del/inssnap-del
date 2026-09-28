@@ -9,7 +9,63 @@
  */
 
 import type { Showing, ShowingEvent, ShowingState } from "@inssnapp/engine";
-import { store as mem } from "./store";
+import { store as mem, type SecurityEvent } from "./store";
+
+export type { SecurityEvent };
+
+// ---- Typed rows returned by the unified data layer (TASK-007) --------------
+// Postgres rows are mapped onto these shapes; the in-memory seed returns
+// the same shapes so callers can rely on them on either store path.
+export interface OrgRow {
+  id: string;
+  name: string;
+}
+
+export interface SafeUserRow {
+  id: string;
+  organizationId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  mfaEnabled: boolean;
+}
+
+export interface PropertyRow {
+  id: string;
+  organizationId: string;
+  name: string;
+  address: string;
+}
+
+export interface UnitRow {
+  id: string;
+  organizationId: string;
+  propertyId: string;
+  label: string;
+  pmsExternalId: string | null;
+  eligible: boolean;
+  residentAvailable: boolean;
+}
+
+export interface ResidentDetailRow {
+  userId: string;
+  email: string;
+  fullName: string;
+  unitId: string;
+  unitLabel: string;
+  propertyName: string;
+  eligible: boolean;
+  residentAvailable: boolean;
+  verified: boolean;
+}
+
+export interface PmsAdapterRow {
+  id: string;
+  organizationId: string;
+  provider: string;
+  status: string;
+  lastSyncAt: string | null;
+}
 
 export const usingPostgres = Boolean(process.env.DATABASE_URL);
 
@@ -49,8 +105,43 @@ async function getPool(): Promise<any> {
 // (apps/web/lib/auth-store.ts) — in-memory seed for local dev, PostgreSQL
 // when DATABASE_URL is set. They are intentionally not part of this object.
 export const db = {
+  orgs: {
+    async list(): Promise<OrgRow[]> {
+      if (!usingPostgres) return mem.orgs.list();
+      const pool = await getPool();
+      const res = await pool.query(`SELECT id, name FROM organizations ORDER BY name`);
+      return res.rows;
+    },
+  },
+
+  users: {
+    /** Safe fields only — password hashes and TOTP secrets never leave this layer. */
+    async byOrg(organizationId: string): Promise<SafeUserRow[]> {
+      if (!usingPostgres) {
+        return mem.users
+          .byOrg(organizationId)
+          .map((u) => ({
+            id: u.id,
+            organizationId: u.organizationId,
+            email: u.email,
+            fullName: u.fullName,
+            role: u.role,
+            mfaEnabled: u.mfaEnabled,
+          }));
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", email,
+                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled"
+         FROM users WHERE organization_id = $1 ORDER BY full_name`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+  },
+
   properties: {
-    async byOrg(organizationId: string) {
+    async byOrg(organizationId: string): Promise<PropertyRow[]> {
       if (!usingPostgres) return mem.properties.byOrg(organizationId);
       const pool = await getPool();
       const res = await pool.query(
@@ -60,10 +151,53 @@ export const db = {
       );
       return res.rows;
     },
+
+    async byId(id: string): Promise<PropertyRow | null> {
+      if (!usingPostgres) return mem.properties.byId(id);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", name, address
+         FROM properties WHERE id = $1`,
+        [id],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async create(organizationId: string, name: string, address: string): Promise<PropertyRow> {
+      if (!usingPostgres) return mem.properties.create(organizationId, name, address);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO properties (organization_id, name, address)
+         VALUES ($1, $2, $3)
+         RETURNING id, organization_id AS "organizationId", name, address`,
+        [organizationId, name, address],
+      );
+      return res.rows[0];
+    },
+
+    async patch(id: string, patch: { name?: string; address?: string }): Promise<PropertyRow | null> {
+      if (!usingPostgres) return mem.properties.patch(id, patch);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE properties
+         SET name = COALESCE($2, name), address = COALESCE($3, address)
+         WHERE id = $1
+         RETURNING id, organization_id AS "organizationId", name, address`,
+        [id, patch.name ?? null, patch.address ?? null],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async remove(id: string): Promise<boolean> {
+      if (!usingPostgres) return mem.properties.remove(id);
+      const pool = await getPool();
+      const res = await pool.query(`DELETE FROM properties WHERE id = $1`, [id]);
+      return (res.rowCount ?? 0) > 0;
+    },
   },
 
   units: {
-    async byOrg(organizationId: string) {
+    async byOrg(organizationId: string): Promise<UnitRow[]> {
       if (!usingPostgres) return mem.units.byOrg(organizationId);
       const pool = await getPool();
       const res = await pool.query(
@@ -76,16 +210,78 @@ export const db = {
       return res.rows;
     },
 
-    async byId(id: string) {
+    async byId(id: string): Promise<UnitRow | null> {
       if (!usingPostgres) return mem.units.byId(id);
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", property_id AS "propertyId",
-                label, eligible, resident_available AS "residentAvailable"
+                label, pms_external_id AS "pmsExternalId", eligible,
+                resident_available AS "residentAvailable"
          FROM units WHERE id = $1`,
         [id],
       );
       return res.rows[0] ?? null;
+    },
+
+    async create(
+      organizationId: string,
+      propertyId: string,
+      label: string,
+      opts: { eligible?: boolean; residentAvailable?: boolean; pmsExternalId?: string | null } = {},
+    ): Promise<UnitRow> {
+      if (!usingPostgres) return mem.units.create(organizationId, propertyId, label, opts);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO units (organization_id, property_id, label, pms_external_id, eligible, resident_available)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, organization_id AS "organizationId", property_id AS "propertyId",
+                   label, pms_external_id AS "pmsExternalId", eligible,
+                   resident_available AS "residentAvailable"`,
+        [
+          organizationId,
+          propertyId,
+          label,
+          opts.pmsExternalId ?? null,
+          opts.eligible ?? true,
+          opts.residentAvailable ?? false,
+        ],
+      );
+      return res.rows[0];
+    },
+
+    async patch(
+      id: string,
+      patch: { label?: string; eligible?: boolean; residentAvailable?: boolean; pmsExternalId?: string },
+    ): Promise<UnitRow | null> {
+      if (!usingPostgres) return mem.units.patch(id, patch);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE units
+         SET label = COALESCE($2, label),
+             eligible = COALESCE($3, eligible),
+             resident_available = COALESCE($4, resident_available),
+             pms_external_id = COALESCE($5, pms_external_id),
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id, organization_id AS "organizationId", property_id AS "propertyId",
+                   label, pms_external_id AS "pmsExternalId", eligible,
+                   resident_available AS "residentAvailable"`,
+        [
+          id,
+          patch.label ?? null,
+          patch.eligible ?? null,
+          patch.residentAvailable ?? null,
+          patch.pmsExternalId ?? null,
+        ],
+      );
+      return res.rows[0] ?? null;
+    },
+
+    async remove(id: string): Promise<boolean> {
+      if (!usingPostgres) return mem.units.remove(id);
+      const pool = await getPool();
+      const res = await pool.query(`DELETE FROM units WHERE id = $1`, [id]);
+      return (res.rowCount ?? 0) > 0;
     },
   },
 
@@ -100,6 +296,131 @@ export const db = {
         [unitId],
       );
       return res.rows[0] ?? null;
+    },
+
+    /**
+     * Enrolled residents for an organization: user identity joined with the
+     * linked unit and property. Powers the management "Residents" list and
+     * participation reporting.
+     */
+    async byOrgDetailed(organizationId: string): Promise<ResidentDetailRow[]> {
+      if (!usingPostgres) {
+        const links = mem.residents.byOrg(organizationId);
+        return links
+          .map((l) => {
+            const u = mem.users.byId(l.userId);
+            const unit = mem.units.byId(l.unitId);
+            const property = unit ? mem.properties.byId(unit.propertyId) : null;
+            if (!u || !unit) return null;
+            return {
+              userId: u.id,
+              email: u.email,
+              fullName: u.fullName,
+              unitId: unit.id,
+              unitLabel: unit.label,
+              propertyName: property?.name ?? "",
+              eligible: unit.eligible,
+              residentAvailable: unit.residentAvailable,
+              verified: true,
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
+      }
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT u.id AS "userId", u.email, u.full_name AS "fullName",
+                un.id AS "unitId", un.label AS "unitLabel",
+                p.name AS "propertyName", un.eligible AS "eligible",
+                un.resident_available AS "residentAvailable", r.verified
+         FROM residents r
+         JOIN users u ON u.id = r.user_id
+         JOIN units un ON un.id = r.unit_id
+         JOIN properties p ON p.id = un.property_id
+         WHERE r.organization_id = $1
+         ORDER BY u.full_name`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+  },
+
+  pmsAdapters: {
+    async byOrg(organizationId: string): Promise<PmsAdapterRow[]> {
+      if (!usingPostgres) return mem.pmsAdapters.byOrg(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", provider, status,
+                last_sync_at AS "lastSyncAt"
+         FROM pms_adapters WHERE organization_id = $1`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+  },
+
+  securityEvents: {
+    async insert(e: {
+      organizationId: string | null;
+      type: SecurityEvent["type"];
+      actorUserId?: string | null;
+      actorEmail?: string | null;
+      detail?: string | null;
+    }): Promise<SecurityEvent> {
+      if (!usingPostgres) return mem.securityEvents.insert(e);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO security_events
+           (organization_id, type, actor_user_id, actor_email, detail)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, organization_id AS "organizationId", type,
+                   actor_user_id AS "actorUserId", actor_email AS "actorEmail",
+                   detail, at`,
+        [
+          e.organizationId,
+          e.type,
+          e.actorUserId ?? null,
+          e.actorEmail ?? null,
+          e.detail ?? null,
+        ],
+      );
+      return res.rows[0];
+    },
+
+    async list(opts: {
+      organizationIds?: string[];
+      type?: string;
+      since?: string;
+      limit?: number;
+    } = {}): Promise<SecurityEvent[]> {
+      if (!usingPostgres) return mem.securityEvents.list(opts);
+      const pool = await getPool();
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (opts.organizationIds?.length) {
+        params.push(opts.organizationIds);
+        // NULL-org events (unknown-email login attempts) are platform-wide
+        // signals; include them whenever the caller is filtering at all.
+        conditions.push(`(organization_id = ANY($${params.length}) OR organization_id IS NULL)`);
+      }
+      if (opts.type) {
+        params.push(opts.type);
+        conditions.push(`type = $${params.length}`);
+      }
+      if (opts.since) {
+        params.push(opts.since);
+        conditions.push(`at >= $${params.length}`);
+      }
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId", type,
+                actor_user_id AS "actorUserId", actor_email AS "actorEmail",
+                detail, at
+         FROM security_events ${where}
+         ORDER BY at DESC LIMIT ${limit}`,
+        params,
+      );
+      return res.rows;
     },
   },
 
@@ -219,6 +540,71 @@ export const db = {
         [key],
       );
       return res.rows[0] ?? null;
+    },
+
+    /**
+     * Filtered cross-organization audit query for the Control Center.
+     * organizationIds restricts the scope; the caller (Control Center
+     * routes) is responsible for requiring the inssnapp_admin role.
+     */
+    async listFiltered(opts: {
+      organizationIds?: string[];
+      transition?: string;
+      fromState?: string;
+      toState?: string;
+      since?: string;
+      limit?: number;
+    } = {}) {
+      if (!usingPostgres) {
+        let events: ShowingEvent[];
+        if (opts.organizationIds) {
+          events = opts.organizationIds.flatMap((id) => mem.showingEvents.list(id));
+        } else {
+          events = mem.orgs.list().flatMap((o) => mem.showingEvents.list(o.id));
+        }
+        if (opts.transition) events = events.filter((e) => e.transition === opts.transition);
+        if (opts.fromState) events = events.filter((e) => e.fromState === opts.fromState);
+        if (opts.toState) events = events.filter((e) => e.toState === opts.toState);
+        if (opts.since) events = events.filter((e) => e.at >= (opts.since as string));
+        events.sort((a, b) => (a.at < b.at ? 1 : -1));
+        const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+        return events.slice(0, limit);
+      }
+      const pool = await getPool();
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (opts.organizationIds?.length) {
+        params.push(opts.organizationIds);
+        conditions.push(`organization_id = ANY($${params.length})`);
+      }
+      if (opts.transition) {
+        params.push(opts.transition);
+        conditions.push(`transition = $${params.length}`);
+      }
+      if (opts.fromState) {
+        params.push(opts.fromState);
+        conditions.push(`from_state = $${params.length}`);
+      }
+      if (opts.toState) {
+        params.push(opts.toState);
+        conditions.push(`to_state = $${params.length}`);
+      }
+      if (opts.since) {
+        params.push(opts.since);
+        conditions.push(`at >= $${params.length}`);
+      }
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+      const res = await pool.query(
+        `SELECT id, showing_id AS "showingId", organization_id AS "organizationId",
+                actor_user_id AS "actorUserId", actor_role AS "actorRole",
+                transition, from_state AS "fromState", to_state AS "toState",
+                idempotency_key AS "idempotencyKey", at
+         FROM showing_events ${where}
+         ORDER BY at DESC LIMIT ${limit}`,
+        params,
+      );
+      return res.rows;
     },
   },
 };

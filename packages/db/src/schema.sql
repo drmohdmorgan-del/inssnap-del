@@ -213,3 +213,24 @@ CREATE TABLE IF NOT EXISTS pms_adapters (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS pms_adapters_org_idx ON pms_adapters (organization_id);
+
+-- ---- Security events (TASK-007) ------------------------------------------------
+-- Administrative audit of authentication-relevant activity: failed/successful
+-- logins, MFA failures, session revocations. Written by the auth routes;
+-- read by the Control Center security view (inssnapp_admin only).
+CREATE TABLE IF NOT EXISTS security_events (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL when the event cannot be attributed to an organization (e.g. a
+  -- login attempt for an unknown email address).
+  organization_id UUID NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL,  -- 'login_failed' | 'login_succeeded' | 'mfa_failed' | 'session_revoked'
+  actor_user_id   UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  actor_email     TEXT NULL,
+  detail          TEXT NULL,
+  at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- TASK-007 alteration: the first draft made organization_id NOT NULL, which
+-- prevents recording login failures for unknown emails. Relax it.
+ALTER TABLE security_events ALTER COLUMN organization_id DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS security_events_org_idx ON security_events (organization_id);
+CREATE INDEX IF NOT EXISTS security_events_at_idx ON security_events (at DESC);

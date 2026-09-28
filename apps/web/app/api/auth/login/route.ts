@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, newMfaChallengeId, MFA_CHALLENGE_TTL_MS } from "@inssnapp/auth";
 import { getAuthStore } from "../../../../lib/auth-store";
 import { issueSessionResponse } from "../../../../lib/auth-helpers";
+import { db } from "../../../../lib/db";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -25,6 +26,16 @@ export async function POST(req: NextRequest) {
   const user = await store.getUserByEmailAnyOrg(email);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     // Same response for unknown email vs wrong password (no oracle).
+    // TASK-007: record the failure for the Control Center security view.
+    // The org is unknown when the email matches nobody — record it anyway
+    // with a null organization.
+    await db.securityEvents.insert({
+      organizationId: user?.organizationId ?? null,
+      type: "login_failed",
+      actorUserId: user?.id ?? null,
+      actorEmail: email.trim().toLowerCase(),
+      detail: user ? "incorrect password" : "unknown email",
+    });
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
@@ -42,5 +53,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ mfaRequired: true, challengeId }, { status: 202 });
   }
 
+  await db.securityEvents.insert({
+    organizationId: user.organizationId,
+    type: "login_succeeded",
+    actorUserId: user.id,
+    actorEmail: user.email,
+    detail: null,
+  });
   return issueSessionResponse(user);
 }

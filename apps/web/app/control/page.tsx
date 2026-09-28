@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchSession, type User } from "../../lib/session";
 import { Nav } from "../../components/Nav";
-import { EngineMonitor } from "../../components/EngineMonitor";
-import { AuditLog } from "../../components/AuditLog";
+import { OrgsOverview, OrgsStatCards } from "../../components/OrgsOverview";
+import { WorkflowMonitor } from "../../components/WorkflowMonitor";
+import { AuditLogViewer } from "../../components/AuditLogViewer";
 import { IntegrationStatus } from "../../components/IntegrationStatus";
+import { SecurityEvents } from "../../components/SecurityEvents";
 
 export default function ControlPage() {
   const router = useRouter();
@@ -19,7 +21,9 @@ export default function ControlPage() {
         router.replace("/login");
         return;
       }
-      if (u.role !== "inssnapp_admin" && u.role !== "management") {
+      // TASK-007: the Control Center is the super-admin surface — strictly
+      // inssnapp_admin. Management uses /admin.
+      if (u.role !== "inssnapp_admin") {
         router.replace("/admin");
         return;
       }
@@ -47,13 +51,19 @@ export default function ControlPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <EngineMonitor user={user} />
-          <IntegrationStatus />
-        </div>
+        <div className="space-y-6">
+          <OrgsStatCards />
 
-        <div className="mt-6">
-          <AuditLog user={user} />
+          <OrgsOverview />
+
+          <WorkflowMonitor />
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <IntegrationStatus />
+            <SecurityEvents />
+          </div>
+
+          <AuditLogViewer />
         </div>
       </main>
     </div>

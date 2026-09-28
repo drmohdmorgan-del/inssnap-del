@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyMfaToken } from "@inssnapp/auth";
 import { getAuthStore } from "../../../../../lib/auth-store";
 import { issueSessionResponse } from "../../../../../lib/auth-helpers";
+import { db } from "../../../../../lib/db";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -32,8 +33,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "MFA is not enrolled for this account." }, { status: 401 });
   }
   if (!verifyMfaToken(user.mfaSecret, code)) {
+    // TASK-007: record MFA failures for the Control Center security view.
+    await db.securityEvents.insert({
+      organizationId: user.organizationId,
+      type: "mfa_failed",
+      actorUserId: user.id,
+      actorEmail: user.email,
+      detail: null,
+    });
     return NextResponse.json({ error: "Invalid code." }, { status: 401 });
   }
 
+  await db.securityEvents.insert({
+    organizationId: user.organizationId,
+    type: "login_succeeded",
+    actorUserId: user.id,
+    actorEmail: user.email,
+    detail: "mfa",
+  });
   return issueSessionResponse(user);
 }
