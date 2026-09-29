@@ -329,3 +329,23 @@ CREATE TABLE IF NOT EXISTS screening_legal_approvals (
 );
 CREATE INDEX IF NOT EXISTS screening_legal_approvals_org_idx
   ON screening_legal_approvals (organization_id, approved_at DESC);
+
+-- ---- Platform super-admin bootstrap ---------------------------------------
+-- Idempotent: creates the INSSNAPP Platform org and the owner's super-admin
+-- account if they don't exist. Runs on every boot via migrate(); the
+-- ON CONFLICT guards make re-application a no-op. (Added 2026-09-29 per
+-- DrMorgan: super-admin access for info@iecincglobal.com.)
+INSERT INTO organizations (id, name)
+VALUES ('00000000-0000-0000-0000-000000000001', 'INSSNAPP Platform')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (organization_id, email, full_name, password_hash, role, mfa_enabled)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'info@iecincglobal.com',
+  'Mohammed Morgan',
+  '$argon2id$v=19$m=19456,p=1,t=2$y51YPKORdSQo4KjZfRDtXQ$f1odvU0QlL3Fe+wiZC+BwfFzNbm7djEVlaKSlvJH5jY',
+  'inssnapp_admin',
+  false
+)
+ON CONFLICT (organization_id, email) DO NOTHING;
