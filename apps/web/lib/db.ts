@@ -119,11 +119,41 @@ export const usingPostgres = Boolean(process.env.DATABASE_URL);
 
 export async function migrate() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
+  // Cold boots can race a still-unreachable database (e.g. Neon waking or a
+  // brief network blip). The old fail-fast behavior turned one such blip
+  // into a total API outage: instrumentation rethrows, which kills the whole
+  // serverless instance, so EVERY /api/* route 500s until a later cold boot
+  // happens to succeed. Retry with backoff instead — the schema runs in a
+  // single transaction, so a failed attempt leaves the database untouched
+  // and is safe to retry. A genuinely broken schema still fails all attempts
+  // and throws, preserving the old fail-fast guarantee for real migrations.
+  const attempts = 3;
+  let lastErr: unknown = null;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await migrateOnce();
+      if (i > 1) console.log(`[inssnapp] database schema is up to date (attempt ${i})`);
+      return;
+    } catch (err) {
+      lastErr = err;
+      console.error(`[inssnapp] startup migration attempt ${i}/${attempts} failed:`, err);
+      if (i < attempts) await new Promise((r) => setTimeout(r, 1000 * i));
+    }
+  }
+  throw lastErr;
+}
+
+async function migrateOnce() {
   const { default: pg } = await import("pg");
   // Schema is embedded at build time (see scripts/embed-schema.mjs) so the
   // serverless bundle carries it without fs access to the source tree.
   const { SCHEMA_SQL } = await import("./schema-embedded");
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const client = new pg.Client({
+    connectionString: process.env.DATABASE_URL,
+    // Fail fast on a hung connect instead of hanging the whole boot past the
+    // serverless function timeout.
+    connectionTimeoutMillis: 15_000,
+  });
   await client.connect();
   try {
     await client.query("BEGIN");
