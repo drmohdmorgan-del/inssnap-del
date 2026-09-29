@@ -9,7 +9,7 @@
  */
 
 import type { Showing, ShowingEvent, ShowingState } from "@inssnapp/engine";
-import { store as mem, type SecurityEvent } from "./store";
+import { store as mem, type SecurityEvent, type ContactSubmission } from "./store";
 
 export type { SecurityEvent };
 
@@ -160,6 +160,28 @@ export const db = {
       const pool = await getPool();
       const res = await pool.query(`SELECT id, name FROM organizations ORDER BY name`);
       return res.rows;
+    },
+  },
+
+  contact: {
+    /** Contact-us landing page submissions (not org-scoped). */
+    async insert(e: {
+      name: string;
+      email: string;
+      company?: string | null;
+      role?: string | null;
+      message: string;
+    }): Promise<ContactSubmission> {
+      if (!usingPostgres) return mem.contactSubmissions.insert(e);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO contact_submissions (name, email, company, role, message)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, name, email, company, role, message,
+                   created_at AS "createdAt"`,
+        [e.name, e.email, e.company ?? null, e.role ?? null, e.message],
+      );
+      return res.rows[0];
     },
   },
 

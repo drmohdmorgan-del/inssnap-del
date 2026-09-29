@@ -93,7 +93,7 @@ export function CtaBand({
               Sign in
             </a>
             <a
-              href="mailto:info@inssnapp.com"
+              href="/contact"
               className="rounded-xl border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
             >
               Contact us

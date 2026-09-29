@@ -84,6 +84,16 @@ export interface PmsAdapter {
   healthStatus: string | null;
 }
 
+export interface ContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  company: string | null;
+  role: string | null;
+  message: string;
+  createdAt: string;
+}
+
 export interface SecurityEvent {
   id: string;
   /** NULL when the event cannot be attributed to an organization (unknown-email login attempt). */
@@ -148,6 +158,8 @@ interface StoreData {
   residents: ResidentLink[];
   pmsAdapters: PmsAdapter[];
   securityEvents: SecurityEvent[];
+  /** Contact-us landing page submissions (not org-scoped). */
+  contactSubmissions: ContactSubmission[];
   /** Screening consent records (org-scoped; TASK-009). */
   screeningConsents: ScreeningConsent[];
   /** Screening report records (org-scoped; TASK-009). */
@@ -211,6 +223,7 @@ function seed(): StoreData {
       },
     ],
     securityEvents: [],
+    contactSubmissions: [],
     screeningConsents: [],
     screeningReports: [],
     screeningLegalApprovals: [],
@@ -248,6 +261,7 @@ function seedProduction(): StoreData {
     residents: [],
     pmsAdapters: [],
     securityEvents: [],
+    contactSubmissions: [],
     screeningConsents: [],
     screeningReports: [],
     screeningLegalApprovals: [],
@@ -400,6 +414,28 @@ export const store = {
       events.sort((a, b) => (a.at < b.at ? 1 : -1));
       if (opts.limit) events = events.slice(0, opts.limit);
       return events;
+    },
+  },
+
+  contactSubmissions: {
+    insert(e: {
+      name: string;
+      email: string;
+      company?: string | null;
+      role?: string | null;
+      message: string;
+    }): ContactSubmission {
+      const submission: ContactSubmission = {
+        id: newId("contact"),
+        name: e.name,
+        email: e.email,
+        company: e.company ?? null,
+        role: e.role ?? null,
+        message: e.message,
+        createdAt: new Date().toISOString(),
+      };
+      db.contactSubmissions.push(submission);
+      return submission;
     },
   },
 

@@ -16,6 +16,7 @@ export const NAV_LINKS = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/services", label: "Services" },
   { href: "/roles", label: "Roles" },
+  { href: "/contact", label: "Contact" },
 ] as const;
 
 export type WorkflowStep = { title: string; detail: string };

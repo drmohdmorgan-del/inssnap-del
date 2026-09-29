@@ -43,6 +43,8 @@ export function rateLimitPresets() {
     showingWritePerUser: { windowMs: 60_000, max: numEnv("INSSNAPP_RL_SHOWING_MAX", 60) },
     /** Screening request (sandbox): per user. */
     screeningPerUser: { windowMs: 60_000, max: numEnv("INSSNAPP_RL_SCREENING_MAX", 30) },
+    /** Contact-form submissions: per IP. */
+    contactPerIp: { windowMs: 60_000, max: numEnv("INSSNAPP_RL_CONTACT_MAX", 5) },
   };
 }
 

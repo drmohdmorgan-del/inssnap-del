@@ -246,6 +246,20 @@ ALTER TABLE security_events ALTER COLUMN organization_id DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS security_events_org_idx ON security_events (organization_id);
 CREATE INDEX IF NOT EXISTS security_events_at_idx ON security_events (at DESC);
 
+-- ---- Contact form submissions ------------------------------------------------
+-- Public contact-us landing page submissions. Not org-scoped: the visitor may
+-- not belong to any organization yet. Reviewed by the INSSNAPP team.
+CREATE TABLE IF NOT EXISTS contact_submissions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  company     TEXT,
+  role        TEXT,   -- 'property_manager' | 'resident' | 'prospect' | 'broker' | 'other'
+  message     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contact_submissions_at_idx ON contact_submissions (created_at DESC);
+
 -- ---- Showing ratings (TASK-004/006) -------------------------------------------
 -- Post-completion participant feedback for a showing. Ratings never change
 -- showing state — the engine remains the sole authority on transitions.
