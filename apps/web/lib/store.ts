@@ -364,6 +364,46 @@ function seedProduction(): StoreData {
   const email = process.env.INSSNAPP_BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
   const passwordHash = process.env.INSSNAPP_BOOTSTRAP_ADMIN_PASSWORD_HASH?.trim();
   const totpSecret = process.env.INSSNAPP_BOOTSTRAP_ADMIN_TOTP_SECRET?.trim();
+
+  // Pilot testing: seed demo test accounts so one-click test sign-in works
+  // without a database. Runs regardless of the bootstrap admin below.
+  // Gated by the same kill switch as test mode: INSSNAPP_TEST_MODE=0
+  // disables both the seed and the test-login API. These are fake
+  // @inssnapp.demo accounts; password is unusable ("!") — test-login
+  // bypasses passwords entirely. Wiped on redeploy (in-memory).
+  if (process.env.INSSNAPP_TEST_MODE !== "0") {
+    const demoOrg: Org = { id: "org_demo", name: "Demo Test Org" };
+    data.orgs.push(demoOrg);
+    const demoUsers: Array<{
+      id: string;
+      email: string;
+      fullName: string;
+      role: "management" | "resident" | "prospect" | "broker";
+    }> = [
+      { id: "u_demo_mgmt", email: "manager@inssnapp.demo", fullName: "Demo Manager", role: "management" },
+      { id: "u_demo_resident", email: "resident@inssnapp.demo", fullName: "Demo Resident", role: "resident" },
+      { id: "u_demo_prospect", email: "prospect@inssnapp.demo", fullName: "Demo Prospect", role: "prospect" },
+      { id: "u_demo_broker", email: "broker@inssnapp.demo", fullName: "Demo Broker", role: "broker" },
+    ];
+    for (const u of demoUsers) {
+      data.users.push({
+        id: u.id,
+        organizationId: demoOrg.id,
+        email: u.email,
+        fullName: u.fullName,
+        passwordHash: "!",
+        role: u.role,
+        mfaEnabled: false,
+        mfaSecret: null,
+        emailVerified: true,
+      });
+    }
+    console.warn(
+      "[inssnapp] production: test mode ON — seeded 4 demo test accounts " +
+        "(@inssnapp.demo). Set INSSNAPP_TEST_MODE=0 before real launch.",
+    );
+  }
+
   if (!email || !passwordHash || !totpSecret) {
     console.warn(
       "[inssnapp] production: INSSNAPP_BOOTSTRAP_ADMIN_{EMAIL,PASSWORD_HASH,TOTP_SECRET} " +
