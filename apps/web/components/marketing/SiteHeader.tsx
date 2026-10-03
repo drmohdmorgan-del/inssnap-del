@@ -18,7 +18,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-10 border-b border-brand-navy-light/15 bg-white/90 backdrop-blur">
       <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <a href="/" className="flex items-center gap-2.5">
-          <BrandMark className="h-9 w-9" />
+          <BrandMark className="h-12 w-12" />
           <span className="flex flex-col leading-none">
             <span className="text-lg font-bold tracking-tight text-brand-navy">INSSNAPP</span>
             <span className="text-xs font-semibold tracking-widest text-brand-violet">
