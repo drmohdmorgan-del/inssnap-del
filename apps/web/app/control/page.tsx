@@ -6,6 +6,8 @@ import { fetchSession, type User } from "../../lib/session";
 import { Nav } from "../../components/Nav";
 import { OrgsOverview, OrgsStatCards } from "../../components/OrgsOverview";
 import { WorkflowMonitor } from "../../components/WorkflowMonitor";
+import { LeadRoutingPanel } from "../../components/LeadRoutingPanel";
+import { LiveMap } from "../../components/LiveMapDynamic";
 import { AuditLogViewer } from "../../components/AuditLogViewer";
 import { IntegrationStatus } from "../../components/IntegrationStatus";
 import { ScreeningPanel } from "../../components/ScreeningPanel";
@@ -55,9 +57,16 @@ export default function ControlPage() {
         <div className="space-y-6">
           <OrgsStatCards />
 
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-900">Live map</h2>
+            <LiveMap height={420} />
+          </section>
+
           <OrgsOverview />
 
           <WorkflowMonitor />
+
+          <LeadRoutingPanel />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <IntegrationStatus />

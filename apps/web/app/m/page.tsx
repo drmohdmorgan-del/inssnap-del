@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "../../components/brand/BrandMark";
+import { TestModeBar } from "../../components/TestModeBar";
+import { LiveMap } from "../../components/LiveMapDynamic";
 
 const ROLES = [
   {
@@ -54,11 +56,20 @@ export default function MobileLandingPage() {
           Everything you do here syncs live with the desktop Control Center —
           same showings, same engine, same records.
         </p>
+
+        <div className="mt-4 overflow-hidden rounded-2xl shadow-lg">
+          <LiveMap height={220} interactive={false} />
+        </div>
+
         <p className="mt-2 text-center text-xs text-slate-500">
           <Link href="/login" className="underline hover:text-slate-300">
             Sign in
           </Link>
         </p>
+
+        <div className="mt-6">
+          <TestModeBar />
+        </div>
       </div>
     </main>
   );

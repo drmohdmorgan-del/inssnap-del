@@ -223,8 +223,10 @@ describeMem("showing rating API (TASK-004/006, in-memory path)", () => {
       400,
     );
 
-    // Prospect participated but only resident/broker may rate.
-    expect((await callId(ratingPOST, id, prospect, { stars: 5 })).status).toBe(403);
+    // Phase 5: the prospect rates the visit (the current tenant) — participant-only.
+    const prospectRated = await callId(ratingPOST, id, prospect, { stars: 5 });
+    expect(prospectRated.status).toBe(201);
+    expect(prospectRated.json.rating.raterRole).toBe("prospect");
 
     // Cross-org → 404, no probing.
     expect((await callId(ratingPOST, id, stranger, { stars: 5 })).status).toBe(404);

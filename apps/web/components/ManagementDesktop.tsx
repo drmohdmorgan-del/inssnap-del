@@ -6,14 +6,20 @@ import { ShowingsMonitor } from "./ShowingsMonitor";
 import { PropertiesManager } from "./PropertiesManager";
 import { UnitsManager } from "./UnitsManager";
 import { ResidentsList } from "./ResidentsList";
+import { InvitesPanel } from "./InvitesPanel";
+import { LeadsPanel } from "./LeadsPanel";
+import { LiveMap } from "./LiveMapDynamic";
 import { ReportsPanel } from "./ReportsPanel";
 import { SettingsPanel } from "./SettingsPanel";
 
 const TABS = [
   { id: "monitor", label: "Live Monitor" },
+  { id: "map", label: "Map" },
   { id: "properties", label: "Properties" },
   { id: "units", label: "Units" },
   { id: "residents", label: "Residents" },
+  { id: "invites", label: "Invites" },
+  { id: "leads", label: "Leads" },
   { id: "reports", label: "Reports" },
   { id: "settings", label: "Settings" },
 ] as const;
@@ -54,9 +60,21 @@ export function ManagementDesktop({ user }: { user: User }) {
       </div>
 
       {tab === "monitor" && <ShowingsMonitor />}
+      {tab === "map" && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Live map</h2>
+          <p className="mb-3 text-sm text-slate-500">
+            Every building, live unit availability, and active showing requests —
+            updating every 5 seconds.
+          </p>
+          <LiveMap height={520} />
+        </section>
+      )}
       {tab === "properties" && <PropertiesManager />}
       {tab === "units" && <UnitsManager />}
       {tab === "residents" && <ResidentsList />}
+      {tab === "invites" && <InvitesPanel />}
+      {tab === "leads" && <LeadsPanel />}
       {tab === "reports" && <ReportsPanel />}
       {tab === "settings" && <SettingsPanel />}
     </div>
