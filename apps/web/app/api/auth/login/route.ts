@@ -60,6 +60,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
+  // Phase 2/3: email verification gates access. Unverified accounts must
+  // complete POST /api/auth/verify first — the client routes them there.
+  if (!user.emailVerified) {
+    return NextResponse.json(
+      { error: "Please verify your email first.", verificationRequired: true, email: user.email },
+      { status: 403 },
+    );
+  }
+
   // MFA gate for privileged roles: no session until the TOTP step passes.
   if (user.mfaEnabled) {
     // Challenges persist in the AuthStore (not process memory) so the

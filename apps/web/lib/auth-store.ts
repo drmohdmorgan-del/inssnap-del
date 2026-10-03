@@ -42,6 +42,7 @@ class MemAuthStore implements AuthStore {
       role: u.role,
       mfaEnabled: u.mfaEnabled,
       mfaSecret: u.mfaSecret,
+      emailVerified: u.emailVerified,
       createdAt: new Date(0).toISOString(),
     };
   }
@@ -50,9 +51,22 @@ class MemAuthStore implements AuthStore {
     const email = input.email.trim().toLowerCase();
     const existing = await this.getUserByEmail(email, input.organizationId);
     if (existing) throw new DuplicateUserError(email, input.organizationId);
-    // The in-memory seed is fixed; runtime user creation is not supported
-    // on the dev store (use PostgreSQL for real user management).
-    throw new Error("User creation is not supported on the in-memory dev store.");
+    // Phase 2/3: runtime signup is supported on the dev store too (the live
+    // pilot runs in-memory until DATABASE_URL is configured). Per-org email
+    // uniqueness is enforced by mem.users.create.
+    try {
+      const u = mem.users.create({
+        organizationId: input.organizationId,
+        email,
+        fullName: input.fullName,
+        passwordHash: input.passwordHash,
+        role: input.role,
+        emailVerified: input.emailVerified ?? false,
+      });
+      return this.toRecord(u);
+    } catch {
+      throw new DuplicateUserError(email, input.organizationId);
+    }
   }
 
   async getUserByEmail(email: string, organizationId: string): Promise<UserRecord | null> {
@@ -79,6 +93,11 @@ class MemAuthStore implements AuthStore {
   ): Promise<UserRecord | null> {
     // MFA enrollment on the dev store is fixed at seed time.
     const u = mem.users.byId(userId);
+    return u ? this.toRecord(u) : null;
+  }
+
+  async setEmailVerified(userId: string): Promise<UserRecord | null> {
+    const u = mem.users.setEmailVerified(userId);
     return u ? this.toRecord(u) : null;
   }
 

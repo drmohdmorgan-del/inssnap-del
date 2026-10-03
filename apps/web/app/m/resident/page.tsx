@@ -16,7 +16,7 @@ import {
   residentInbox,
   type ResidentAction,
 } from "../_components/flows";
-import type { ResidentEnrollment, SessionUser, Showing } from "../_components/types";
+import type { ProspectProfile, ResidentEnrollment, SessionUser, Showing } from "../_components/types";
 import {
   EmptyView,
   ErrorView,
@@ -49,6 +49,9 @@ export default function MobileResidentPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [ratingFor, setRatingFor] = useState<string | null>(null);
+  const [profileFor, setProfileFor] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<Record<string, ProspectProfile>>({});
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   // Role guard: signed-out → /login; wrong role → /m.
   useEffect(() => {
@@ -137,6 +140,23 @@ export default function MobileResidentPage() {
     router.replace("/login?next=" + encodeURIComponent(window.location.pathname));
   }
 
+  async function toggleProfile(showing: Showing) {
+    if (!showing.prospectUserId) return;
+    if (profileFor === showing.id) {
+      setProfileFor(null);
+      return;
+    }
+    setProfileFor(showing.id);
+    setProfileError(null);
+    if (profiles[showing.prospectUserId]) return;
+    try {
+      const profile = await mobileApi.getProspectProfile(showing.prospectUserId);
+      setProfiles((prev) => ({ ...prev, [showing.prospectUserId as string]: profile }));
+    } catch (err) {
+      setProfileError(err instanceof MobileApiError ? err.message : "Could not load the prospect profile.");
+    }
+  }
+
   if (!user || showings === null || enrollments === null) {
     return (
       <MobileShell>
@@ -200,29 +220,67 @@ export default function MobileResidentPage() {
       )}
 
       <SectionTitle>Incoming requests</SectionTitle>
+      {profileError && (
+        <MCard>
+          <p className="text-sm text-red-700">{profileError}</p>
+        </MCard>
+      )}
       {inbox.length === 0 ? (
         <EmptyView message="No new showing requests right now." />
       ) : (
-        inbox.map((s) => (
-          <ShowingCard key={s.id} showing={s} unitLabel={units[s.unitId] ?? "—"}>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <MButton disabled={busy !== null} onClick={() => act(s, "accept")}>
-                  {busy === `accept-${s.id}` ? "…" : "Accept"}
+        inbox.map((s) => {
+          const profile = s.prospectUserId ? profiles[s.prospectUserId] : undefined;
+          const expanded = profileFor === s.id;
+          return (
+            <ShowingCard key={s.id} showing={s} unitLabel={units[s.unitId] ?? "—"}>
+              {s.prospectUserId && (
+                <MButton kind="secondary" onClick={() => toggleProfile(s)}>
+                  {expanded ? "Hide prospect profile" : "View prospect profile"}
                 </MButton>
+              )}
+              {expanded && profile && (
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-sm font-bold text-slate-900">{profile.fullName}</p>
+                  <p className="text-xs text-slate-500">
+                    {profile.emailVerified ? "✓ Email verified" : "Email not verified"} ·{" "}
+                    {profile.stats.completedShowings} past showing
+                    {profile.stats.completedShowings === 1 ? "" : "s"}
+                  </p>
+                  {profile.ratingsReceived.count > 0 ? (
+                    <p className="mt-1 text-xs text-slate-600">
+                      ★ {profile.ratingsReceived.avgStars} average from{" "}
+                      {profile.ratingsReceived.count} rating
+                      {profile.ratingsReceived.count === 1 ? "" : "s"}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">No ratings yet.</p>
+                  )}
+                  {profile.ratingsReceived.recent.map((r, i) => (
+                    <p key={i} className="mt-1 text-xs italic text-slate-500">
+                      “{r.comment || `${r.stars} stars`}”
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <MButton disabled={busy !== null} onClick={() => act(s, "accept")}>
+                    {busy === `accept-${s.id}` ? "…" : "Accept"}
+                  </MButton>
+                </div>
+                <div className="flex-1">
+                  <MButton
+                    kind="danger"
+                    disabled={busy !== null}
+                    onClick={() => act(s, "decline")}
+                  >
+                    {busy === `decline-${s.id}` ? "…" : "Decline"}
+                  </MButton>
+                </div>
               </div>
-              <div className="flex-1">
-                <MButton
-                  kind="danger"
-                  disabled={busy !== null}
-                  onClick={() => act(s, "decline")}
-                >
-                  {busy === `decline-${s.id}` ? "…" : "Decline"}
-                </MButton>
-              </div>
-            </div>
-          </ShowingCard>
-        ))
+            </ShowingCard>
+          );
+        })
       )}
 
       <SectionTitle>Live showings</SectionTitle>

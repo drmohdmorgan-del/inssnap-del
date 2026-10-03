@@ -73,6 +73,7 @@ export class PostgresStore implements AuthStore {
       role: row.role,
       mfaEnabled: row.mfaEnabled,
       mfaSecret: row.mfaSecret ?? null,
+      emailVerified: row.emailVerified ?? false,
       createdAt:
         row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
     };
@@ -92,6 +93,7 @@ export class PostgresStore implements AuthStore {
     return `id, organization_id AS "organizationId", email, full_name AS "fullName",
             password_hash AS "passwordHash", role,
             mfa_enabled AS "mfaEnabled", mfa_secret AS "mfaSecret",
+            email_verified AS "emailVerified",
             created_at AS "createdAt"`;
   }
 
@@ -100,8 +102,8 @@ export class PostgresStore implements AuthStore {
     try {
       const res = await pool.query(
         `INSERT INTO users
-           (organization_id, email, full_name, password_hash, role, mfa_enabled, mfa_secret)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+           (organization_id, email, full_name, password_hash, role, mfa_enabled, mfa_secret, email_verified)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING ${PostgresStore.userColumns()}`,
         [
           input.organizationId,
@@ -111,6 +113,7 @@ export class PostgresStore implements AuthStore {
           input.role,
           input.mfaEnabled ?? false,
           input.mfaSecret ?? null,
+          input.emailVerified ?? false,
         ],
       );
       return PostgresStore.mapUser(res.rows[0]);
@@ -164,6 +167,19 @@ export class PostgresStore implements AuthStore {
        WHERE id = $1
        RETURNING ${PostgresStore.userColumns()}`,
       [userId, opts.enabled, opts.secret ?? null],
+    );
+    return res.rows[0] ? PostgresStore.mapUser(res.rows[0]) : null;
+  }
+
+  async setEmailVerified(userId: string): Promise<UserRecord | null> {
+    const pool = await this.pool_();
+    const res = await pool.query(
+      `UPDATE users
+       SET email_verified = true,
+           updated_at = now()
+       WHERE id = $1
+       RETURNING ${PostgresStore.userColumns()}`,
+      [userId],
     );
     return res.rows[0] ? PostgresStore.mapUser(res.rows[0]) : null;
   }

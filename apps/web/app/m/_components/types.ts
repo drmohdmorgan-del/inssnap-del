@@ -75,3 +75,19 @@ export interface ResidentEnrollment {
   residentAvailable: boolean;
   verified: boolean;
 }
+
+/** Privacy-safe prospect profile (GET /api/prospects/[id]/profile). */
+export interface ProspectProfile {
+  fullName: string;
+  emailVerified: boolean;
+  stats: {
+    totalShowings: number;
+    completedShowings: number;
+    outcomes: { APPLY: number; WATCH: number; DECLINE: number };
+  };
+  ratingsReceived: {
+    count: number;
+    avgStars: number | null;
+    recent: { stars: number; comment: string | null; at: string }[];
+  };
+}

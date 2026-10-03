@@ -13,7 +13,7 @@
  * transition or a PMS sync.
  */
 
-/** Showing lifecycle + integration events the platform can announce. */
+/** Showing lifecycle + integration + auth events the platform can announce. */
 export type NotificationEventName =
   | "showing.request_received"
   | "showing.accepted"
@@ -21,6 +21,7 @@ export type NotificationEventName =
   | "showing.confirmed"
   | "showing.reminder"
   | "showing.completed"
+  | "auth.verification_code"
   | "pms.sync_completed"
   | "pms.sync_failed";
 

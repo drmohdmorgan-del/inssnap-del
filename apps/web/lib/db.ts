@@ -28,6 +28,7 @@ export interface SafeUserRow {
   fullName: string;
   role: string;
   mfaEnabled: boolean;
+  emailVerified: boolean;
 }
 
 export interface PropertyRow {
@@ -37,6 +38,55 @@ export interface PropertyRow {
   address: string;
   /** Vendor-stable external id from the PMS sync; null for manually created properties. */
   pmsExternalId: string | null;
+  /** Map coordinates (Phase 8); null until set via pin-drop or geocoding. */
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface InviteRow {
+  id: string;
+  code: string;
+  organizationId: string;
+  unitId: string | null;
+  role: "resident" | "prospect" | "broker";
+  email: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  usedByUserId: string | null;
+}
+
+export interface VerificationCodeRow {
+  id: string;
+  organizationId: string;
+  email: string;
+  code: string;
+  purpose: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  attempts: number;
+}
+
+export type LeadDisposition = "pending" | "inhouse" | "management";
+
+export interface LeadDispositionRow {
+  showingId: string;
+  organizationId: string;
+  disposition: LeadDisposition;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
+  updatedAt: string;
+}
+
+export interface BrokerProfileRow {
+  userId: string;
+  organizationId: string;
+  tier: "trial" | "basic" | "pro";
+  tierStartedAt: string;
+  trialEndsAt: string | null;
+  updatedAt: string;
 }
 
 export interface UnitRow {
@@ -77,8 +127,7 @@ export interface PmsAdapterRow {
 
 export interface RatingRow {
   id: string;
-  organizationId: string;
-  showingId: string;
+  organizationId: string;  showingId: string;
   raterUserId: string;
   raterRole: string;
   stars: number;
@@ -179,6 +228,39 @@ async function getPool(): Promise<any> {
   return pgPool;
 }
 
+/** Human-typable invite code (no ambiguous chars: 0/O, 1/I/L). */
+function randomInviteCode(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function inviteColumns(): string {
+  return `id, code, organization_id AS "organizationId", unit_id AS "unitId", role,
+          email, created_by_user_id AS "createdByUserId",
+          created_at AS "createdAt", expires_at AS "expiresAt",
+          used_at AS "usedAt", used_by_user_id AS "usedByUserId"`;
+}
+
+function verificationCodeColumns(): string {
+  return `id, organization_id AS "organizationId", email, code, purpose,
+          created_at AS "createdAt", expires_at AS "expiresAt",
+          used_at AS "usedAt", attempts`;
+}
+
+function leadDispositionColumns(): string {
+  return `showing_id AS "showingId", organization_id AS "organizationId", disposition,
+          decided_by_user_id AS "decidedByUserId", decided_at AS "decidedAt",
+          updated_at AS "updatedAt"`;
+}
+
+function brokerProfileColumns(): string {
+  return `user_id AS "userId", organization_id AS "organizationId", tier,
+          tier_started_at AS "tierStartedAt", trial_ends_at AS "trialEndsAt",
+          updated_at AS "updatedAt"`;
+}
+
 // ---- Unified data access ----------------------------------------------------
 // NOTE (TASK-002): users and server-side sessions live behind getAuthStore()
 // (apps/web/lib/auth-store.ts) — in-memory seed for local dev, PostgreSQL
@@ -228,12 +310,14 @@ export const db = {
             fullName: u.fullName,
             role: u.role,
             mfaEnabled: u.mfaEnabled,
+            emailVerified: u.emailVerified,
           }));
       }
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", email,
-                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled"
+                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled",
+                email_verified AS "emailVerified"
          FROM users WHERE organization_id = $1 ORDER BY full_name`,
         [organizationId],
       );
@@ -252,13 +336,15 @@ export const db = {
               fullName: u.fullName,
               role: u.role,
               mfaEnabled: u.mfaEnabled,
+              emailVerified: u.emailVerified,
             }
           : null;
       }
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", email,
-                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled"
+                full_name AS "fullName", role, mfa_enabled AS "mfaEnabled",
+                email_verified AS "emailVerified"
          FROM users WHERE id = $1`,
         [id],
       );
@@ -272,7 +358,8 @@ export const db = {
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", name, address,
-                pms_external_id AS "pmsExternalId"
+                pms_external_id AS "pmsExternalId",
+                latitude, longitude
          FROM properties WHERE organization_id = $1`,
         [organizationId],
       );
@@ -284,7 +371,8 @@ export const db = {
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", name, address,
-                pms_external_id AS "pmsExternalId"
+                pms_external_id AS "pmsExternalId",
+                latitude, longitude
          FROM properties WHERE id = $1`,
         [id],
       );
@@ -297,7 +385,8 @@ export const db = {
       const pool = await getPool();
       const res = await pool.query(
         `SELECT id, organization_id AS "organizationId", name, address,
-                pms_external_id AS "pmsExternalId"
+                pms_external_id AS "pmsExternalId",
+                latitude, longitude
          FROM properties WHERE organization_id = $1 AND pms_external_id = $2 LIMIT 1`,
         [organizationId, pmsExternalId],
       );
@@ -308,34 +397,64 @@ export const db = {
       organizationId: string,
       name: string,
       address: string,
-      opts: { pmsExternalId?: string | null } = {},
+      opts: {
+        pmsExternalId?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
+      } = {},
     ): Promise<PropertyRow> {
       if (!usingPostgres) return mem.properties.create(organizationId, name, address, opts);
       const pool = await getPool();
       const res = await pool.query(
-        `INSERT INTO properties (organization_id, name, address, pms_external_id)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO properties (organization_id, name, address, pms_external_id, latitude, longitude)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, organization_id AS "organizationId", name, address,
-                   pms_external_id AS "pmsExternalId"`,
-        [organizationId, name, address, opts.pmsExternalId ?? null],
+                   pms_external_id AS "pmsExternalId", latitude, longitude`,
+        [
+          organizationId,
+          name,
+          address,
+          opts.pmsExternalId ?? null,
+          opts.latitude ?? null,
+          opts.longitude ?? null,
+        ],
       );
       return res.rows[0];
     },
 
     async patch(
       id: string,
-      patch: { name?: string; address?: string; pmsExternalId?: string },
+      patch: {
+        name?: string;
+        address?: string;
+        pmsExternalId?: string;
+        latitude?: number | null;
+        longitude?: number | null;
+      },
     ): Promise<PropertyRow | null> {
       if (!usingPostgres) return mem.properties.patch(id, patch);
       const pool = await getPool();
+      // Latitude/longitude use explicit "touched" flags so omitting them
+      // leaves existing coordinates alone while null clears them.
       const res = await pool.query(
         `UPDATE properties
          SET name = COALESCE($2, name), address = COALESCE($3, address),
-             pms_external_id = COALESCE($4, pms_external_id)
+             pms_external_id = COALESCE($4, pms_external_id),
+             latitude = CASE WHEN $5 THEN $6 ELSE latitude END,
+             longitude = CASE WHEN $7 THEN $8 ELSE longitude END
          WHERE id = $1
          RETURNING id, organization_id AS "organizationId", name, address,
-                   pms_external_id AS "pmsExternalId"`,
-        [id, patch.name ?? null, patch.address ?? null, patch.pmsExternalId ?? null],
+                   pms_external_id AS "pmsExternalId", latitude, longitude`,
+        [
+          id,
+          patch.name ?? null,
+          patch.address ?? null,
+          patch.pmsExternalId ?? null,
+          "latitude" in patch,
+          patch.latitude ?? null,
+          "longitude" in patch,
+          patch.longitude ?? null,
+        ],
       );
       return res.rows[0] ?? null;
     },
@@ -1167,6 +1286,244 @@ export const db = {
         `INSERT INTO reminder_sends (showing_id) VALUES ($1) ON CONFLICT (showing_id) DO NOTHING`,
         [showingId],
       );
+    },
+  },
+
+  // ---- Signup invitations (Phase 1) -----------------------------------------
+  invites: {
+    async create(input: {
+      organizationId: string;
+      unitId: string | null;
+      role: "resident" | "prospect" | "broker";
+      email?: string | null;
+      createdByUserId: string;
+      ttlHours?: number;
+    }): Promise<InviteRow> {
+      if (!usingPostgres) return mem.invites.create(input);
+      const pool = await getPool();
+      // Retry on the (unlikely) code collision — UNIQUE (organization_id, code).
+      for (let i = 0; i < 10; i++) {
+        const code = randomInviteCode();
+        try {
+          const res = await pool.query(
+            `INSERT INTO invites
+               (organization_id, code, unit_id, role, email, created_by_user_id, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(hours => $7))
+             RETURNING ${inviteColumns()}`,
+            [
+              input.organizationId,
+              code,
+              input.unitId,
+              input.role,
+              input.email?.trim().toLowerCase() || null,
+              input.createdByUserId,
+              input.ttlHours ?? 72,
+            ],
+          );
+          return res.rows[0];
+        } catch (err: any) {
+          if (err?.code !== "23505") throw err;
+        }
+      }
+      throw new Error("invites.create: could not generate a unique code");
+    },
+    async byCode(organizationId: string, code: string): Promise<InviteRow | null> {
+      if (!usingPostgres) return mem.invites.byCode(organizationId, code);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${inviteColumns()} FROM invites
+         WHERE organization_id = $1 AND code = $2 LIMIT 1`,
+        [organizationId, code.trim().toUpperCase()],
+      );
+      return res.rows[0] ?? null;
+    },
+    /** Public invite validation (signup page): code is unguessable; no org needed. */
+    async byCodeAnyOrg(code: string): Promise<InviteRow | null> {
+      if (!usingPostgres) return mem.invites.byCodeAnyOrg(code);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${inviteColumns()} FROM invites WHERE code = $1 LIMIT 1`,
+        [code.trim().toUpperCase()],
+      );
+      return res.rows[0] ?? null;
+    },
+    async byOrg(organizationId: string): Promise<InviteRow[]> {
+      if (!usingPostgres) return mem.invites.byOrg(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${inviteColumns()} FROM invites
+         WHERE organization_id = $1 ORDER BY created_at DESC`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+    async markUsed(id: string, userId: string): Promise<InviteRow | null> {
+      if (!usingPostgres) return mem.invites.markUsed(id, userId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE invites SET used_at = now(), used_by_user_id = $2
+         WHERE id = $1 AND used_at IS NULL
+         RETURNING ${inviteColumns()}`,
+        [id, userId],
+      );
+      return res.rows[0] ?? null;
+    },
+  },
+
+  // ---- Email verification codes (Phase 2/3; free, no SMS) -------------------
+  verificationCodes: {
+    async issue(organizationId: string, email: string): Promise<VerificationCodeRow> {
+      if (!usingPostgres) return mem.verificationCodes.issue(organizationId, email);
+      const pool = await getPool();
+      const target = email.trim().toLowerCase();
+      await pool.query(
+        `UPDATE verification_codes SET used_at = now()
+         WHERE organization_id = $1 AND email = $2 AND used_at IS NULL`,
+        [organizationId, target],
+      );
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const res = await pool.query(
+        `INSERT INTO verification_codes (organization_id, email, code, purpose, expires_at)
+         VALUES ($1, $2, $3, 'signup', now() + make_interval(mins => 15))
+         RETURNING ${verificationCodeColumns()}`,
+        [organizationId, target, code],
+      );
+      return res.rows[0];
+    },
+    async consume(
+      organizationId: string,
+      email: string,
+      code: string,
+    ): Promise<{ ok: true; record: VerificationCodeRow } | { ok: false; error: "not_found" | "expired" | "locked" }> {
+      if (!usingPostgres) return mem.verificationCodes.consume(organizationId, email, code);
+      const pool = await getPool();
+      const target = email.trim().toLowerCase();
+      const res = await pool.query(
+        `SELECT ${verificationCodeColumns()} FROM verification_codes
+         WHERE organization_id = $1 AND email = $2 AND used_at IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [organizationId, target],
+      );
+      const vc = res.rows[0] as VerificationCodeRow | undefined;
+      if (!vc || vc.code !== code.trim()) {
+        if (vc) {
+          await pool.query(
+            `UPDATE verification_codes SET attempts = attempts + 1,
+               used_at = CASE WHEN attempts + 1 >= 5 THEN now() ELSE used_at END
+             WHERE id = $1`,
+            [vc.id],
+          );
+        }
+        return { ok: false, error: "not_found" };
+      }
+      if (new Date(vc.expiresAt).getTime() <= Date.now()) {
+        await pool.query(`UPDATE verification_codes SET used_at = now() WHERE id = $1`, [vc.id]);
+        return { ok: false, error: "expired" };
+      }
+      if (vc.attempts >= 5) return { ok: false, error: "locked" };
+      await pool.query(`UPDATE verification_codes SET used_at = now() WHERE id = $1`, [vc.id]);
+      return { ok: true, record: vc };
+    },
+  },
+
+  // ---- Lead dispositions (Phase 6) -------------------------------------------
+  leadDispositions: {
+    async get(showingId: string): Promise<LeadDispositionRow | null> {
+      if (!usingPostgres) return mem.leadDispositions.get(showingId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${leadDispositionColumns()} FROM lead_dispositions WHERE showing_id = $1`,
+        [showingId],
+      );
+      return res.rows[0] ?? null;
+    },
+    async byOrg(organizationId: string): Promise<LeadDispositionRow[]> {
+      if (!usingPostgres) return mem.leadDispositions.byOrg(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${leadDispositionColumns()} FROM lead_dispositions
+         WHERE organization_id = $1 ORDER BY updated_at DESC`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+    async set(
+      showingId: string,
+      organizationId: string,
+      disposition: LeadDisposition,
+      decidedByUserId: string | null,
+    ): Promise<LeadDispositionRow> {
+      if (!usingPostgres) return mem.leadDispositions.set(showingId, organizationId, disposition, decidedByUserId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO lead_dispositions
+           (showing_id, organization_id, disposition, decided_by_user_id, decided_at, updated_at)
+         VALUES ($1, $2, $3, $4,
+           CASE WHEN $3 = 'pending' THEN NULL ELSE now() END, now())
+         ON CONFLICT (showing_id) DO UPDATE SET
+           disposition = EXCLUDED.disposition,
+           decided_by_user_id = EXCLUDED.decided_by_user_id,
+           decided_at = CASE WHEN EXCLUDED.disposition = 'pending'
+             THEN lead_dispositions.decided_at ELSE now() END,
+           updated_at = now()
+         RETURNING ${leadDispositionColumns()}`,
+        [showingId, organizationId, disposition, decidedByUserId],
+      );
+      return res.rows[0];
+    },
+  },
+
+  // ---- Broker tier profiles (Phase 7) ------------------------------------------
+  brokerProfiles: {
+    async get(userId: string): Promise<BrokerProfileRow | null> {
+      if (!usingPostgres) return mem.brokerProfiles.get(userId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${brokerProfileColumns()} FROM broker_profiles WHERE user_id = $1`,
+        [userId],
+      );
+      return res.rows[0] ?? null;
+    },
+    /** Get or create (new brokers start on trial). */
+    async getOrCreate(userId: string, organizationId: string): Promise<BrokerProfileRow> {
+      if (!usingPostgres) return mem.brokerProfiles.getOrCreate(userId, organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO broker_profiles (user_id, organization_id, tier, trial_ends_at)
+         VALUES ($1, $2, 'trial', now() + make_interval(days => 7))
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING ${brokerProfileColumns()}`,
+        [userId, organizationId],
+      );
+      if (res.rows[0]) return res.rows[0];
+      const existing = await pool.query(
+        `SELECT ${brokerProfileColumns()} FROM broker_profiles WHERE user_id = $1`,
+        [userId],
+      );
+      return existing.rows[0];
+    },
+    async setTier(
+      userId: string,
+      organizationId: string,
+      tier: "trial" | "basic" | "pro",
+    ): Promise<BrokerProfileRow> {
+      if (!usingPostgres) return mem.brokerProfiles.setTier(userId, organizationId, tier);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO broker_profiles
+           (user_id, organization_id, tier, tier_started_at, trial_ends_at, updated_at)
+         VALUES ($1, $2, $3, now(),
+           CASE WHEN $3 = 'trial' THEN now() + make_interval(days => 7) ELSE NULL END, now())
+         ON CONFLICT (user_id) DO UPDATE SET
+           tier = EXCLUDED.tier,
+           tier_started_at = now(),
+           trial_ends_at = CASE WHEN EXCLUDED.tier = 'trial'
+             THEN now() + make_interval(days => 7) ELSE NULL END,
+           updated_at = now()
+         RETURNING ${brokerProfileColumns()}`,
+        [userId, organizationId, tier],
+      );
+      return res.rows[0];
     },
   },
 };

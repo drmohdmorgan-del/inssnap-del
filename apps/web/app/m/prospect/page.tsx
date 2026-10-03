@@ -25,6 +25,7 @@ import {
   MCard,
   MobileHeader,
   MobileShell,
+  RatingForm,
   SectionTitle,
   ShowingCard,
 } from "../_components/ui";
@@ -44,6 +45,7 @@ export default function MobileProspectPage() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [ratingFor, setRatingFor] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Role guard: signed-out → /login; wrong role → /m.
@@ -122,6 +124,11 @@ export default function MobileProspectPage() {
   const completed = showings.filter(
     (s) => s.prospectUserId === user.userId && s.state === "COMPLETED",
   );
+  // Decided showings (OUTCOME): decision is recorded, but the prospect can
+  // still rate the visit.
+  const decided = showings.filter(
+    (s) => s.prospectUserId === user.userId && s.state === "OUTCOME",
+  );
   const labelsByUnit: Record<string, string> = {};
   for (const u of units) labelsByUnit[u.id] = u.label;
 
@@ -135,7 +142,7 @@ export default function MobileProspectPage() {
         </MCard>
       )}
 
-      {(active.length > 0 || completed.length > 0) && (
+      {(active.length > 0 || completed.length > 0 || decided.length > 0) && (
         <>
           <SectionTitle>My requests</SectionTitle>
           {active.map((s) => (
@@ -161,6 +168,44 @@ export default function MobileProspectPage() {
                   </div>
                 ))}
               </div>
+              {ratingFor === s.id ? (
+                <RatingForm
+                  showingId={s.id}
+                  onDone={() => {
+                    setRatingFor(null);
+                    load();
+                  }}
+                />
+              ) : (
+                <div className="mt-2">
+                  <MButton kind="secondary" onClick={() => setRatingFor(s.id)}>
+                    Rate your visit
+                  </MButton>
+                </div>
+              )}
+            </ShowingCard>
+          ))}
+          {decided.map((s) => (
+            <ShowingCard key={s.id} showing={s} unitLabel={labelsByUnit[s.unitId] ?? "—"}>
+              <p className="mb-2 text-sm text-slate-600">
+                Decision recorded:{" "}
+                <span className="font-semibold">
+                  {s.outcome === "APPLY" ? "Accept" : s.outcome === "WATCH" ? "Watching" : "Declined"}
+                </span>
+              </p>
+              {ratingFor === s.id ? (
+                <RatingForm
+                  showingId={s.id}
+                  onDone={() => {
+                    setRatingFor(null);
+                    load();
+                  }}
+                />
+              ) : (
+                <MButton kind="secondary" onClick={() => setRatingFor(s.id)}>
+                  Rate your visit
+                </MButton>
+              )}
             </ShowingCard>
           ))}
         </>

@@ -77,6 +77,8 @@ DO $$ BEGIN
     ALTER TABLE users ADD CONSTRAINT users_org_email_unique UNIQUE (organization_id, email);
   END IF;
 END $$;
+-- Phase 2/3: email verification for the signup flow.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
 
 -- TASK-002: server-side sessions. The cookie carries an HMAC-signed opaque
 -- token; only its SHA-256 hash (token_hash, the primary key) is stored.
@@ -129,6 +131,9 @@ CREATE TABLE IF NOT EXISTS properties (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS properties_org_idx ON properties (organization_id);
+-- Phase 8 live map: building coordinates (pin-drop or Nominatim geocode).
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
 CREATE TABLE IF NOT EXISTS units (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -152,6 +157,65 @@ CREATE TABLE IF NOT EXISTS residents (
   unit_id         UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
   verified        BOOLEAN NOT NULL DEFAULT false,
   UNIQUE (user_id, unit_id)
+);
+
+-- ---- Signup invitations (Phase 1) -------------------------------------------
+-- Management-issued invite codes; resident invites bind to one unit.
+CREATE TABLE IF NOT EXISTS invites (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  code              TEXT NOT NULL,
+  unit_id           UUID REFERENCES units(id) ON DELETE SET NULL,
+  role              TEXT NOT NULL CHECK (role IN ('resident', 'prospect', 'broker')),
+  email             CITEXT,
+  created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at        TIMESTAMPTZ NOT NULL,
+  used_at           TIMESTAMPTZ,
+  used_by_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (organization_id, code)
+);
+CREATE INDEX IF NOT EXISTS invites_org_idx ON invites (organization_id);
+CREATE INDEX IF NOT EXISTS invites_code_idx ON invites (code);
+
+-- ---- Email verification codes (Phase 2/3 signup flow; free, no SMS) ---------
+CREATE TABLE IF NOT EXISTS verification_codes (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email             CITEXT NOT NULL,
+  code              TEXT NOT NULL,
+  purpose           TEXT NOT NULL DEFAULT 'signup',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at        TIMESTAMPTZ NOT NULL,
+  used_at           TIMESTAMPTZ,
+  attempts          INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS verification_codes_email_idx ON verification_codes (organization_id, email);
+
+-- ---- Lead dispositions (Phase 6) --------------------------------------------
+-- A "lead" is a showing in OUTCOME state. Disposition is web-side metadata,
+-- NOT engine state. Control directs each lead: pending | inhouse | management.
+CREATE TABLE IF NOT EXISTS lead_dispositions (
+  showing_id        UUID PRIMARY KEY REFERENCES showings(id) ON DELETE CASCADE,
+  organization_id   UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  disposition       TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (disposition IN ('pending', 'inhouse', 'management')),
+  decided_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  decided_at        TIMESTAMPTZ,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS lead_dispositions_org_idx ON lead_dispositions (organization_id);
+
+-- ---- Broker tier profiles (Phase 7) ------------------------------------------
+-- Tier selection is free self-serve in the pilot; no payment provider wired.
+CREATE TABLE IF NOT EXISTS broker_profiles (
+  user_id         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  tier            TEXT NOT NULL DEFAULT 'trial'
+                  CHECK (tier IN ('trial', 'basic', 'pro')),
+  tier_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  trial_ends_at   TIMESTAMPTZ,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---- Showing Engine (authoritative) -----------------------------------------

@@ -4,10 +4,27 @@
  */
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { BrandMark } from "../../../components/brand/BrandMark";
 import { mobileApi, MobileApiError } from "./api";
 import type { Showing, ShowingState } from "./types";
+
+/** Inline TEST MODE badge (no extra import cycle — mirrors TestModeBadge). */
+function MobileTestBadge() {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/test-mode")
+      .then((r) => r.json())
+      .then((d) => setEnabled(d.enabled === true))
+      .catch(() => {});
+  }, []);
+  if (!enabled) return null;
+  return (
+    <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-amber-950">
+      TEST
+    </span>
+  );
+}
 
 const STATE_META: Record<ShowingState, { label: string; classes: string }> = {
   AVAILABLE: { label: "Available", classes: "bg-slate-100 text-slate-700" },
@@ -52,7 +69,10 @@ export function MobileHeader({
     <header className="flex items-center gap-3 py-5">
       <BrandMark className="h-10 w-10" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-lg font-bold text-brand-navy">{title}</h1>
+        <h1 className="flex items-center gap-2 truncate text-lg font-bold text-brand-navy">
+          {title}
+          <MobileTestBadge />
+        </h1>
         <p className="truncate text-xs text-slate-500">{email}</p>
       </div>
       <button

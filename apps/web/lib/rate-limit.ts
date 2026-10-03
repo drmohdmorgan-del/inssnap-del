@@ -45,6 +45,8 @@ export function rateLimitPresets() {
     screeningPerUser: { windowMs: 60_000, max: numEnv("INSSNAPP_RL_SCREENING_MAX", 30) },
     /** Contact-form submissions: per IP. */
     contactPerIp: { windowMs: 60_000, max: numEnv("INSSNAPP_RL_CONTACT_MAX", 5) },
+    /** Public signup / verification: per IP (abuse-resistant, no account yet). */
+    signupPerIp: { windowMs: 60 * 60_000, max: numEnv("INSSNAPP_RL_SIGNUP_MAX", 20) },
   };
 }
 

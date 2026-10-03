@@ -25,18 +25,35 @@ export async function POST(req: NextRequest) {
   if (!isPrivileged(user.role)) return forbidden();
 
   const body = await req.json().catch(() => ({}));
-  const { name, address } = body as { name?: unknown; address?: unknown };
+  const { name, address, latitude, longitude } = body as {
+    name?: unknown;
+    address?: unknown;
+    latitude?: unknown;
+    longitude?: unknown;
+  };
   if (!validName(name, 120) || !validName(address, 240)) {
     return NextResponse.json(
       { error: "name (1–120 chars) and address (1–240 chars) are required." },
       { status: 400 },
     );
   }
+  for (const [key, value] of [
+    ["latitude", latitude],
+    ["longitude", longitude],
+  ] as const) {
+    if (value !== undefined && value !== null && (typeof value !== "number" || !Number.isFinite(value))) {
+      return NextResponse.json({ error: `${key} must be a number or null.` }, { status: 400 });
+    }
+  }
 
   const property = await db.properties.create(
     user.organizationId,
     name.trim(),
     (address as string).trim(),
+    {
+      latitude: typeof latitude === "number" ? latitude : null,
+      longitude: typeof longitude === "number" ? longitude : null,
+    },
   );
   return NextResponse.json({ property }, { status: 201 });
 }

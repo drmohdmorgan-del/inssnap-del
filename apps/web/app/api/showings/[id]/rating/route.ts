@@ -4,14 +4,14 @@ import { forbidden } from "../../../../../lib/auth-helpers";
 import { db } from "../../../../../lib/db";
 
 /**
- * Post-completion showing rating (TASK-004 resident, TASK-006 broker).
+ * Post-completion showing rating (Phase 5: resident, broker AND prospect).
  *
  * Body: { stars: 1–5, comment?: string (≤500 chars) }.
  *
  * Ratings are participant feedback only — they never change showing
  * state (the engine remains the sole authority on transitions). Only a
- * participant of the showing (its resident or its broker) may rate, and
- * only once the showing is COMPLETED (or has a recorded OUTCOME). One
+ * participant of the showing (its resident, broker, or prospect) may rate,
+ * and only once the showing is COMPLETED (or has a recorded OUTCOME). One
  * rating per rater per showing; a repeat submission fails with 409.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,10 +20,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (loaded.response) return loaded.response;
   const { user, showing } = loaded.ctx;
 
-  if (user.role !== "resident" && user.role !== "broker") return forbidden();
-  if (showing.residentUserId !== user.userId && showing.brokerUserId !== user.userId) {
-    return forbidden();
-  }
+  // Phase 5: the prospect rates the visit (the current tenant); the
+  // resident/broker rate as before. Participant-only.
+  const isParticipant =
+    (user.role === "resident" && showing.residentUserId === user.userId) ||
+    (user.role === "broker" && showing.brokerUserId === user.userId) ||
+    (user.role === "prospect" && showing.prospectUserId === user.userId);
+  if (!isParticipant) return forbidden();
   if (showing.state !== "COMPLETED" && showing.state !== "OUTCOME") {
     return NextResponse.json(
       { error: "The showing must be completed before it can be rated." },

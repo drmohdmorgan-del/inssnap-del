@@ -1,10 +1,12 @@
 "use client";
 
 import { DEMO_TOTP_SECRET } from "../../lib/demo";
+import { fetchSession } from "../../lib/session";
 import { BrandMark } from "../../components/brand/BrandMark";
+import { TestModeBar } from "../../components/TestModeBar";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const DEMO_ACCOUNTS = [
   { label: "Management", email: "manager@inssnapp.demo" },
@@ -14,8 +16,24 @@ const DEMO_ACCOUNTS = [
   { label: "Broker", email: "broker@inssnapp.demo" },
 ];
 
+const ROLE_HOME: Record<string, string> = {
+  prospect: "/m/prospect",
+  broker: "/m/broker",
+  resident: "/m/resident",
+  management: "/admin",
+  inssnapp_admin: "/control",
+};
+
+function safeNext(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function LoginForm({ showDemo }: { showDemo: boolean }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(showDemo ? "pw" : "");
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +41,17 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
   // MFA step: set when the server answers 202 with a challenge id.
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [code, setCode] = useState("");
+
+  async function routeAfterLogin() {
+    const next = safeNext(searchParams.get("next"));
+    if (next) {
+      router.push(next);
+    } else {
+      const user = await fetchSession();
+      router.push(user ? ROLE_HOME[user.role] || "/admin" : "/admin");
+    }
+    router.refresh();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,11 +69,14 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
       return;
     }
     if (!res.ok) {
+      if (data.verificationRequired && data.email) {
+        router.push(`/signup?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
       setError(data.error || "Login failed");
       return;
     }
-    router.push("/admin");
-    router.refresh();
+    await routeAfterLogin();
   }
 
   async function handleMfaSubmit(e: React.FormEvent) {
@@ -62,8 +94,7 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
       setError(data.error || "Verification failed");
       return;
     }
-    router.push("/admin");
-    router.refresh();
+    await routeAfterLogin();
   }
 
   return (
@@ -74,7 +105,9 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
         <BrandMark className="absolute -right-20 -top-20 h-80 w-80 opacity-[0.05]" />
         <BrandMark className="absolute -bottom-24 -left-16 h-64 w-64 opacity-[0.04]" />
       </div>
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
+      <div className="relative w-full max-w-md">
+      <TestModeBar />
+      <div className="rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
           <img
             src="/brand/inssnapp-logo.png"
@@ -210,6 +243,7 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
           </p>
         </div>
         )}
+      </div>
       </div>
     </main>
   );

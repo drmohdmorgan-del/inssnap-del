@@ -6,7 +6,7 @@
  * `inssnapp_session` cookie jar, so plain fetch is sufficient.
  */
 
-import type { Rating, ResidentEnrollment, Showing, ShowingOutcome, Unit } from "./types";
+import type { ProspectProfile, Rating, ResidentEnrollment, Showing, ShowingOutcome, Unit } from "./types";
 
 export class MobileApiError extends Error {
   readonly status: number;
@@ -140,5 +140,12 @@ export const mobileApi = {
     } catch {
       // Best-effort: navigation clears the client state regardless.
     }
+  },
+
+  async getProspectProfile(prospectId: string): Promise<ProspectProfile> {
+    const { profile } = await request<{ profile: ProspectProfile }>(
+      `/api/prospects/${encodeURIComponent(prospectId)}/profile`,
+    );
+    return profile;
   },
 };

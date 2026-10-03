@@ -43,6 +43,7 @@ const EVENT_RECIPIENT_ROLES: Record<NotificationEventName, Array<"resident" | "p
   "showing.confirmed": ["prospect", "resident"],
   "showing.reminder": ["prospect", "resident"],
   "showing.completed": ["prospect"],
+  "auth.verification_code": [],
   "pms.sync_completed": [],
   "pms.sync_failed": [],
 };
@@ -128,6 +129,29 @@ export async function notifyShowingReminder(showing: Showing): Promise<void> {
     actorRole: "system",
     recipients,
     summary: `Reminder: your showing${unitLabel ? ` for unit ${unitLabel}` : ""} is confirmed.`,
+  };
+  await notifySafely(payload);
+}
+
+/**
+ * Sends the signup email-verification code (Phase 2/3). Free — no SMS.
+ * Delivered through the notification adapter (console in dev); the code is
+ * also returned in the signup response outside production so the pilot can
+ * complete verification without an email provider. Never throws.
+ */
+export async function notifyVerificationCode(
+  organizationId: string,
+  email: string,
+  code: string,
+): Promise<void> {
+  const payload: NotificationPayload = {
+    event: "auth.verification_code",
+    organizationId,
+    at: new Date().toISOString(),
+    actorRole: "system",
+    recipients: [{ email }],
+    summary: `Your INSSNAPP verification code is ${code}. It expires in 15 minutes.`,
+    meta: { code },
   };
   await notifySafely(payload);
 }

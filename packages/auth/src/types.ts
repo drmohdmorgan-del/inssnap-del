@@ -19,6 +19,8 @@ export interface UserRecord {
   mfaEnabled: boolean;
   /** Base32 TOTP secret; null until the user enrolls. Never log or expose. */
   mfaSecret: string | null;
+  /** Email verification (Phase 2/3 signup flow). */
+  emailVerified: boolean;
   createdAt: string;
 }
 
@@ -40,6 +42,7 @@ export interface CreateUserInput {
   role: Role;
   mfaEnabled?: boolean;
   mfaSecret?: string | null;
+  emailVerified?: boolean;
 }
 
 export interface CreateSessionInput {
@@ -80,6 +83,8 @@ export interface AuthStore {
   getUserByEmailAnyOrg(email: string): Promise<UserRecord | null>;
   getUserById(id: string): Promise<UserRecord | null>;
   setMfa(userId: string, opts: { enabled: boolean; secret?: string | null }): Promise<UserRecord | null>;
+  /** Marks the user's email as verified (Phase 2/3 signup flow). */
+  setEmailVerified(userId: string): Promise<UserRecord | null>;
 
   createSession(input: CreateSessionInput): Promise<SessionRecord>;
   getSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;

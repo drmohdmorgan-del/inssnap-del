@@ -22,6 +22,7 @@ import {
   rateLimitExceeded,
   rateLimitPresets,
 } from "./rate-limit";
+import { brokerUsage } from "./broker-tiers";
 
 /** Maps engine result codes to HTTP statuses. */
 export function transitionStatus(code: string): number {
@@ -182,6 +183,20 @@ export async function parseBrokerAssignBody(body: Record<string, unknown>, user:
       response: NextResponse.json(
         { error: "Assigned user does not hold the broker role." },
         { status: 400 },
+      ),
+    };
+  }
+  // Phase 7: enforce the broker's subscription tier lead limit.
+  const usage = await brokerUsage(db, user.organizationId, brokerUserId);
+  if (!usage.canAcceptMore) {
+    const reason = usage.trialExpired
+      ? "This broker's free trial has expired."
+      : "This broker has reached their tier's lead limit.";
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        { error: `${reason} Ask them to choose a higher tier in the broker app.`, tierLimit: true },
+        { status: 403 },
       ),
     };
   }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "../lib/session";
 import { BrandMark } from "./brand/BrandMark";
+import { TestModeBadge } from "./TestModeBar";
 
 const ROLE_LABELS: Record<string, string> = {
   management: "Management",
@@ -33,6 +34,7 @@ export function Nav({ user, isControl }: { user: User; isControl: boolean }) {
           <span className="hidden rounded-full bg-brand-violet/10 px-2.5 py-0.5 text-xs font-medium text-brand-violet sm:inline">
             {ROLE_LABELS[user.role] ?? user.role}
           </span>
+          <TestModeBadge />
         </div>
 
         <nav className="flex items-center gap-1 sm:gap-2">

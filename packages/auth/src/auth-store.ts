@@ -45,6 +45,7 @@ export class MemoryAuthStore implements AuthStore {
       role: input.role,
       mfaEnabled: input.mfaEnabled ?? false,
       mfaSecret: input.mfaSecret ?? null,
+      emailVerified: input.emailVerified ?? false,
       createdAt: now,
     };
     this.users.set(user.id, user);
@@ -81,6 +82,13 @@ export class MemoryAuthStore implements AuthStore {
     u.mfaEnabled = opts.enabled;
     if (opts.secret !== undefined) u.mfaSecret = opts.secret;
     if (!opts.enabled) u.mfaSecret = null;
+    return { ...u };
+  }
+
+  async setEmailVerified(userId: string): Promise<UserRecord | null> {
+    const u = this.users.get(userId);
+    if (!u) return null;
+    u.emailVerified = true;
     return { ...u };
   }
 
