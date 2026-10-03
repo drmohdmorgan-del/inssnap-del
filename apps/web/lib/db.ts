@@ -273,6 +273,15 @@ export const db = {
       const res = await pool.query(`SELECT id, name FROM organizations ORDER BY name`);
       return res.rows;
     },
+    async create(name: string): Promise<OrgRow> {
+      if (!usingPostgres) return mem.orgs.create(name);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO organizations (name) VALUES ($1) RETURNING id, name`,
+        [name],
+      );
+      return res.rows[0];
+    },
   },
 
   contact: {

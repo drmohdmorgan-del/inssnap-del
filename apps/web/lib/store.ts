@@ -473,6 +473,11 @@ export const store = {
     get(id: string): Org | null {
       return db.orgs.find((o) => o.id === id) ?? null;
     },
+    create(name: string): Org {
+      const org: Org = { id: newId("org"), name };
+      db.orgs.push(org);
+      return org;
+    },
   },
 
   residents: {
