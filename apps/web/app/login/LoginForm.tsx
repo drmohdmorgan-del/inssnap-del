@@ -1,20 +1,11 @@
 "use client";
 
-import { DEMO_TOTP_SECRET } from "../../lib/demo";
 import { fetchSession } from "../../lib/session";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { TestModeBar } from "../../components/TestModeBar";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-const DEMO_ACCOUNTS = [
-  { label: "Management", email: "manager@inssnapp.demo" },
-  { label: "Control Center (Admin)", email: "admin@inssnapp.demo" },
-  { label: "Resident", email: "resident@inssnapp.demo" },
-  { label: "Prospect", email: "prospect@inssnapp.demo" },
-  { label: "Broker", email: "broker@inssnapp.demo" },
-];
 
 const ROLE_HOME: Record<string, string> = {
   prospect: "/m/prospect",
@@ -31,11 +22,11 @@ function safeNext(raw: string | null): string | null {
   return raw;
 }
 
-export default function LoginForm({ showDemo }: { showDemo: boolean }) {
+export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(showDemo ? "pw" : "");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // MFA step: set when the server answers 202 with a challenge id.
@@ -216,33 +207,6 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
           </form>
         )}
 
-        {showDemo && (
-        <div className="mt-6 border-t border-brand-navy-light/15 pt-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-navy-light/50">
-            Demo accounts
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {DEMO_ACCOUNTS.map((a) => (
-              <button
-                key={a.email}
-                type="button"
-                onClick={() => setEmail(a.email)}
-                className="rounded-full border border-brand-navy-light/15 bg-brand-navy-light/5 px-3 py-1 text-xs text-brand-navy-light transition hover:border-brand-violet/40 hover:text-brand-violet"
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-brand-navy-light/50">
-            Password for all demo accounts: <code className="rounded bg-brand-navy-light/10 px-1">pw</code>
-          </p>
-          <p className="mt-1 text-xs text-brand-navy-light/50">
-            <span className="font-semibold text-brand-violet">Dev only:</span> the admin account has
-            MFA enabled — enroll this TOTP secret in your authenticator app:{" "}
-            <code className="rounded bg-brand-navy-light/10 px-1">{DEMO_TOTP_SECRET}</code>
-          </p>
-        </div>
-        )}
       </div>
       </div>
     </main>

@@ -2,12 +2,12 @@ import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 
 /**
- * Server component: decides once, at request time, whether demo credentials
- * may be shown. Demo hints are dev-only — with DATABASE_URL set the app runs
- * against production data and the demo section stays hidden.
+ * Server component. The login page never renders demo credentials —
+ * no demo account list, no demo password, no TOTP secrets — in any build.
+ * Local/dev pilot testing uses the TEST MODE bar (explicit opt-in via
+ * INSSNAPP_TEST_MODE=1), never disclosed credentials.
  */
 export default function LoginPage() {
-  const showDemo = !process.env.DATABASE_URL;
   return (
     <Suspense
       fallback={
@@ -16,7 +16,7 @@ export default function LoginPage() {
         </main>
       }
     >
-      <LoginForm showDemo={showDemo} />
+      <LoginForm />
     </Suspense>
   );
 }
