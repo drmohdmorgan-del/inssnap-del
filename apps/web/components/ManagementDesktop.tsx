@@ -43,7 +43,28 @@ export function ManagementDesktop({ user }: { user: User }) {
         </p>
       </div>
 
-      <div className="-mb-1 flex gap-1 overflow-x-auto border-b border-slate-200">
+      {/* Mobile/tablet: section picker as a droplist — the tab strip needs
+          ~790px and must never scroll sideways (mobile-fit rule). The strip
+          itself is only shown at lg+, where it fits without scrolling. */}
+      <div className="lg:hidden">
+        <label htmlFor="mgmt-section" className="sr-only">
+          Section
+        </label>
+        <select
+          id="mgmt-section"
+          value={tab}
+          onChange={(e) => setTab(e.target.value as TabId)}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800"
+        >
+          {TABS.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="-mb-1 hidden gap-1 overflow-x-auto border-b border-slate-200 lg:flex">
         {TABS.map((t) => (
           <button
             key={t.id}

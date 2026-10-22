@@ -239,7 +239,7 @@ export default function LoginForm({ showDemo }: { showDemo: boolean }) {
           <p className="mt-1 text-xs text-brand-navy-light/50">
             <span className="font-semibold text-brand-violet">Dev only:</span> the admin account has
             MFA enabled — enroll this TOTP secret in your authenticator app:{" "}
-            <code className="rounded bg-brand-navy-light/10 px-1">{DEMO_TOTP_SECRET}</code>
+            <code className="break-all rounded bg-brand-navy-light/10 px-1">{DEMO_TOTP_SECRET}</code>
           </p>
         </div>
         )}

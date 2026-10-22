@@ -47,7 +47,7 @@ export function SecurityEvents() {
   }, [load]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-slate-900">Security Events</h2>
         <select
@@ -69,7 +69,7 @@ export function SecurityEvents() {
       ) : events.length === 0 ? (
         <p className="text-sm text-slate-500">No security events recorded yet.</p>
       ) : (
-        <div className="max-h-96 overflow-auto">
+        <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-white">
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -82,7 +82,7 @@ export function SecurityEvents() {
             <tbody>
               {events.map((e) => (
                 <tr key={e.id} className="border-b border-slate-100">
-                  <td className="whitespace-nowrap py-2 pr-4 text-slate-500">
+                  <td className="py-2 pr-4 text-slate-500">
                     {new Date(e.at).toLocaleString()}
                   </td>
                   <td className="py-2 pr-4">
@@ -92,7 +92,7 @@ export function SecurityEvents() {
                       {e.type.replace(/_/g, " ")}
                     </span>
                   </td>
-                  <td className="py-2 pr-4 text-xs text-slate-600">
+                  <td className="py-2 pr-4 text-xs text-slate-600 [overflow-wrap:anywhere]">
                     {e.actorEmail ?? <span className="text-slate-400">—</span>}
                   </td>
                   <td className="py-2 text-xs text-slate-500">{e.detail ?? "—"}</td>

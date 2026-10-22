@@ -96,7 +96,7 @@ export function AuditLogViewer() {
       ) : events.length === 0 ? (
         <p className="text-sm text-slate-500">No events match these filters.</p>
       ) : (
-        <div className="max-h-96 overflow-auto">
+        <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-white">
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -110,13 +110,13 @@ export function AuditLogViewer() {
             <tbody>
               {events.map((e) => (
                 <tr key={e.id} className="border-b border-slate-100">
-                  <td className="whitespace-nowrap py-2 pr-4 text-slate-500">
+                  <td className="py-2 pr-4 text-slate-500">
                     {new Date(e.at).toLocaleString()}
                   </td>
-                  <td className="py-2 pr-4 font-mono text-xs text-slate-700">
+                  <td className="py-2 pr-4 font-mono text-xs text-slate-700 [overflow-wrap:anywhere]">
                     {e.transition}
                   </td>
-                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-slate-600">
+                  <td className="py-2 pr-4 text-xs text-slate-600">
                     {e.fromState} → {e.toState}
                   </td>
                   <td className="py-2 pr-4 text-xs text-slate-600">{e.actorRole}</td>

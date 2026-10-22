@@ -25,9 +25,9 @@ export function Nav({ user, isControl }: { user: User; isControl: boolean }) {
 
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <Link href="/admin" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link href="/admin" className="flex shrink-0 items-center gap-2.5 whitespace-nowrap text-lg font-bold tracking-tight text-slate-900">
             <BrandMark className="h-8 w-8" />
             INSSNAPP
           </Link>
@@ -37,17 +37,17 @@ export function Nav({ user, isControl }: { user: User; isControl: boolean }) {
           <TestModeBadge />
         </div>
 
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Link
             href="/admin"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            className="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:px-3"
           >
             Dashboard
           </Link>
           {isControl && (
             <Link
               href="/control"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              className="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:px-3"
             >
               Control Center
             </Link>
@@ -56,7 +56,7 @@ export function Nav({ user, isControl }: { user: User; isControl: boolean }) {
           <span className="hidden text-sm text-slate-500 sm:block">{user.fullName}</span>
           <button
             onClick={logout}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            className="whitespace-nowrap rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:px-3"
           >
             Sign out
           </button>

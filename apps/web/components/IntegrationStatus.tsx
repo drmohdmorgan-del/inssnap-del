@@ -48,7 +48,7 @@ export function IntegrationStatus() {
   }, [load]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-3 text-lg font-semibold text-slate-900">Integration Status</h2>
       {loading ? (
         <p className="text-sm text-slate-400">Loading…</p>
