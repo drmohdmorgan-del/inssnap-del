@@ -35,7 +35,9 @@ export function unitMatchesQuery(unit: Unit, query: string): boolean {
   if (!q) return true;
   return (
     unit.label.toLowerCase().includes(q) ||
-    (unit.pmsExternalId ?? "").toLowerCase().includes(q)
+    (unit.pmsExternalId ?? "").toLowerCase().includes(q) ||
+    // F5 (2026-10-25): search also matches the building name.
+    (unit.propertyName ?? "").toLowerCase().includes(q)
   );
 }
 

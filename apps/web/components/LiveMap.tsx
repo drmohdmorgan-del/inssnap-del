@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -56,6 +56,9 @@ export function LiveMap({
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  // F6 (2026-10-25): a failed fetch (e.g. signed-in prospect/broker/resident
+  // gets 403 from /api/map) used to render an empty map with no explanation.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
@@ -136,7 +139,11 @@ export function LiveMap({
     async function refresh() {
       try {
         const res = await fetch("/api/map");
-        if (!res.ok) return;
+        if (!res.ok) {
+          setFailed(true);
+          return;
+        }
+        setFailed(false);
         const data = (await res.json()) as { properties: MapProperty[] };
         const layers = layerRef.current;
         if (!layers) return;
@@ -197,6 +204,12 @@ export function LiveMap({
 
   return (
     <div>
+      {failed && (
+        <p className="mb-2 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-500">
+          Live map unavailable for this account — management and Control Center
+          accounts can view the map.
+        </p>
+      )}
       <div ref={divRef} style={{ height, width: "100%", borderRadius: 12, zIndex: 0 }} />
       <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
         <span className="flex items-center gap-1">

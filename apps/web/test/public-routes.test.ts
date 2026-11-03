@@ -154,11 +154,14 @@ describeMem("TASK-011 protected surfaces remain gated", () => {
     }
   });
 
-  it("/login page gates demo hint to dev only", () => {
-    const src = readFileSync(join(__dirname, "..", "app", "login", "page.tsx"), "utf8");
-    expect(src).toContain("DATABASE_URL");
-    expect(src).not.toContain("DEMO_TOTP_SECRET");
+  it("/login page exposes no demo credentials", () => {
     const formSrc = readFileSync(join(__dirname, "..", "app", "login", "LoginForm.tsx"), "utf8");
-    expect(formSrc).toContain("showDemo");
+    expect(formSrc).not.toContain("DEMO_TOTP_SECRET");
+    expect(formSrc).not.toContain("DEMO_ACCOUNTS");
+    expect(formSrc).not.toContain("Password for all demo accounts");
+    expect(formSrc).not.toContain("showDemo");
+    const pageSrc = readFileSync(join(__dirname, "..", "app", "login", "page.tsx"), "utf8");
+    expect(pageSrc).not.toContain("showDemo");
+    expect(pageSrc).not.toContain("DEMO_TOTP_SECRET");
   });
 });

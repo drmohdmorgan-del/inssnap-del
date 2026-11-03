@@ -226,6 +226,14 @@ describeMem("showing API routes (TASK-003, in-memory path)", () => {
     const eventsRes = await eventsGET(new NextRequest("http://localhost/api/events", { headers }));
     const { events } = (await eventsRes.json()) as { events: any[] };
     expect(events.filter((e) => e.showingId === id)).toHaveLength(1);
+
+    // Cleanup (2026-10-29): F7 allows one active request per prospect+unit,
+    // so this still-REQUESTED showing must be released or later tests that
+    // request unit_2 for the same prospect are rejected with 409.
+    const resident = await loginAs("resident@inssnapp.demo");
+    const declined = await call(residentDeclinePOST, id, resident, {});
+    expect(declined.status).toBe(200);
+    expect(declined.json.showing.state).toBe("AVAILABLE");
   });
 
   it("returns 404 for cross-org access", async () => {
@@ -241,24 +249,36 @@ describeMem("showing API routes (TASK-003, in-memory path)", () => {
     const res = await call(confirmPOST, id, otherManager, {});
     expect(res.status).toBe(404);
     expect(res.json.error).toBe("Showing not found.");
+
+    // Cleanup (2026-10-29, F7 isolation): release the active request so the
+    // next tests can request unit_2 for the same prospect.
+    const resident = await loginAs("resident@inssnapp.demo");
+    const declined = await call(residentDeclinePOST, id, resident, {});
+    expect(declined.status).toBe(200);
   });
 
   it("prevents double-booking under concurrent CONFIRM", async () => {
     const prospect = await loginAs("prospect@inssnapp.demo");
+    // 2026-10-29: the competing request belongs to a SECOND prospect — F7
+    // (one active request per prospect per unit) makes the original
+    // same-prospect setup impossible by design. The unit lock, not the
+    // requester, is what this test exercises.
+    const prospect2 = await loginAs("prospect2@inssnapp.demo");
     const resident = await loginAs("resident@inssnapp.demo");
     const manager = await loginAs("manager@inssnapp.demo");
 
-    const mk = async (key: string) => {
-      const created = await callCollection(requestPOST, "/api/showings/request", prospect, {
+    const mk = async (key: string, cookie: string) => {
+      const created = await callCollection(requestPOST, "/api/showings/request", cookie, {
         unitId: "unit_2",
         idempotencyKey: key,
       });
+      expect(created.status).toBe(201);
       const id = created.json.showing.id as string;
       await call(residentAcceptPOST, id, resident, {});
       return id;
     };
-    const a = await mk("api-e2e-conc-a");
-    const b = await mk("api-e2e-conc-b");
+    const a = await mk("api-e2e-conc-a", prospect);
+    const b = await mk("api-e2e-conc-b", prospect2);
 
     const [ra, rb] = await Promise.all([
       call(confirmPOST, a, manager, {}),
@@ -268,6 +288,30 @@ describeMem("showing API routes (TASK-003, in-memory path)", () => {
     const locked = [ra, rb].filter((r) => r.status === 409 && r.json.code === "UNIT_LOCKED");
     expect(oks).toHaveLength(1);
     expect(locked).toHaveLength(1);
+
+    // Cleanup (2026-10-29, F7 isolation): drive the winner to a terminal
+    // state and release the loser, so later tests can request unit_2.
+    const winnerId = ra.status === 200 ? a : b;
+    const loserId = ra.status === 200 ? b : a;
+    const winnerProspect = ra.status === 200 ? prospect : prospect2;
+    const checkedIn = await call(checkInPOST, winnerId, resident, {});
+    expect(checkedIn.status).toBe(200);
+    const completed = await call(completePOST, winnerId, resident, {});
+    expect(completed.status).toBe(200);
+    const outcome = await call(outcomePOST, winnerId, winnerProspect, { outcome: "APPLY" });
+    expect(outcome.status).toBe(200);
+    // The loser is RESIDENT_ACCEPTED (resident decline is legal only from
+    // REQUESTED), so drive it forward too — with the winner terminal, the
+    // unit lock is free and the loser can complete its lifecycle.
+    const loserProspect = ra.status === 200 ? prospect2 : prospect;
+    const confirmLoser = await call(confirmPOST, loserId, manager, {});
+    expect(confirmLoser.status).toBe(200);
+    const loserCheckedIn = await call(checkInPOST, loserId, resident, {});
+    expect(loserCheckedIn.status).toBe(200);
+    const loserCompleted = await call(completePOST, loserId, resident, {});
+    expect(loserCompleted.status).toBe(200);
+    const loserOutcome = await call(outcomePOST, loserId, loserProspect, { outcome: "WATCH" });
+    expect(loserOutcome.status).toBe(200);
   });
 
   it("refuses requests for units that are not available", async () => {

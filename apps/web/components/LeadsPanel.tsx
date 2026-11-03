@@ -13,6 +13,7 @@ type Lead = {
   disposition: string;
   decidedAt: string | null;
   brokerAssigned: boolean;
+  brokerName: string | null;
   avgStars: number | null;
   completedAt: string;
 };
@@ -29,8 +30,10 @@ const OUTCOME_LABEL: Record<string, string> = {
  * Management lead pool (Phase 6/7).
  *
  * Shows the leads Control pushed to this organization (disposition =
- * management). Management pushes a lead to a broker via the existing
- * BROKER_ASSIGN transition — the broker sees it in their mobile queue.
+ * management). Management pushes a lead to a broker for follow-up via the
+ * lead-assignment metadata endpoint (F2, 2026-10-25) — NOT the BROKER_ASSIGN
+ * engine transition, which is illegal from OUTCOME and could never succeed.
+ * The assignment is recorded on the lead; it changes no showing state.
  */
 export function LeadsPanel() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -60,13 +63,10 @@ export function LeadsPanel() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/showings/${lead.showingId}/broker/assign`, {
+      const res = await fetch(`/api/leads/${lead.showingId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brokerUserId: brokerId,
-          idempotencyKey: crypto.randomUUID(),
-        }),
+        body: JSON.stringify({ brokerUserId: brokerId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -85,8 +85,8 @@ export function LeadsPanel() {
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-1 text-lg font-semibold text-slate-900">Lead pool</h2>
       <p className="mb-4 text-sm text-slate-500">
-        Leads the Control Center sent to you. Push a lead to a broker — it
-        lands in their mobile assignment queue instantly.
+        Leads the Control Center sent to you. Push a lead to a broker for
+        follow-up — the assignment is recorded on the lead.
       </p>
 
       {error && (
@@ -122,7 +122,7 @@ export function LeadsPanel() {
                 </div>
                 {l.brokerAssigned ? (
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                    With broker
+                    With broker{l.brokerName ? ` · ${l.brokerName}` : ""}
                   </span>
                 ) : assignFor === l.showingId ? (
                   <div className="flex items-center gap-2">

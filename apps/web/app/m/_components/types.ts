@@ -50,6 +50,8 @@ export interface Unit {
   pmsExternalId: string | null;
   eligible: boolean;
   residentAvailable: boolean;
+  /** F5 (2026-10-25): building name from GET /api/units; never the address. */
+  propertyName?: string | null;
 }
 
 export interface Rating {

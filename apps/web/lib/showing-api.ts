@@ -186,8 +186,28 @@ export async function parseBrokerAssignBody(body: Record<string, unknown>, user:
       ),
     };
   }
-  // Phase 7: enforce the broker's subscription tier lead limit.
+  // License vetting (DrMorgan 2026-11-03): no verified license, no
+  // operating on the platform — lead assignment is the operating act.
   const usage = await brokerUsage(db, user.organizationId, brokerUserId);
+  if (!usage.licenseVerified) {
+    const detail =
+      usage.licenseStatus === "pending"
+        ? "their license is still pending verification"
+        : usage.licenseStatus === "rejected"
+          ? "their license verification was rejected"
+          : "they have not submitted a license for verification";
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        {
+          error: `This broker cannot receive leads yet — ${detail}. Management verifies broker licenses in the vetting queue.`,
+          licenseNotVerified: true,
+        },
+        { status: 403 },
+      ),
+    };
+  }
+  // Phase 7: enforce the broker's subscription tier lead limit.
   if (!usage.canAcceptMore) {
     const reason = usage.trialExpired
       ? "This broker's free trial has expired."

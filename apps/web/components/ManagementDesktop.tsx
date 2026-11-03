@@ -11,6 +11,8 @@ import { LeadsPanel } from "./LeadsPanel";
 import { LiveMap } from "./LiveMapDynamic";
 import { ReportsPanel } from "./ReportsPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { ScreeningPanel } from "./ScreeningPanel";
+import { BrokerLicensePanel } from "./BrokerLicensePanel";
 
 const TABS = [
   { id: "monitor", label: "Live Monitor" },
@@ -20,6 +22,8 @@ const TABS = [
   { id: "residents", label: "Residents" },
   { id: "invites", label: "Invites" },
   { id: "leads", label: "Leads" },
+  { id: "screening", label: "Screening" },
+  { id: "vetting", label: "Broker Vetting" },
   { id: "reports", label: "Reports" },
   { id: "settings", label: "Settings" },
 ] as const;
@@ -96,6 +100,8 @@ export function ManagementDesktop({ user }: { user: User }) {
       {tab === "residents" && <ResidentsList />}
       {tab === "invites" && <InvitesPanel />}
       {tab === "leads" && <LeadsPanel />}
+      {tab === "screening" && <ScreeningPanel />}
+      {tab === "vetting" && <BrokerLicensePanel />}
       {tab === "reports" && <ReportsPanel />}
       {tab === "settings" && <SettingsPanel />}
     </div>

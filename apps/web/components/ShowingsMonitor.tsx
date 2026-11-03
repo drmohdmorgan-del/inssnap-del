@@ -21,6 +21,12 @@ type Unit = {
   residentAvailable: boolean;
 };
 
+type Broker = {
+  id: string;
+  fullName: string;
+  emailVerified: boolean;
+};
+
 const STATES = [
   "ALL",
   "AVAILABLE",
@@ -47,13 +53,24 @@ const STATE_COLORS: Record<string, string> = {
 export function ShowingsMonitor() {
   const [showings, setShowings] = useState<Showing[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [brokers, setBrokers] = useState<Broker[]>([]);
   const [filter, setFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
+  // F1 (2026-10-25): management actions on resident-accepted showings.
+  const [assignFor, setAssignFor] = useState<string | null>(null);
+  const [brokerId, setBrokerId] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [sRes, uRes] = await Promise.all([fetch("/api/showings"), fetch("/api/units")]);
+    const [sRes, uRes, bRes] = await Promise.all([
+      fetch("/api/showings"),
+      fetch("/api/units"),
+      fetch("/api/users?role=broker"),
+    ]);
     if (sRes.ok) setShowings((await sRes.json()).showings);
     if (uRes.ok) setUnits((await uRes.json()).units);
+    if (bRes.ok) setBrokers((await bRes.json()).users ?? []);
     setLoading(false);
   }, []);
 
@@ -62,6 +79,49 @@ export function ShowingsMonitor() {
     const interval = setInterval(load, 3000); // live monitor poll
     return () => clearInterval(interval);
   }, [load]);
+
+  async function confirmShowing(showingId: string) {
+    setBusy(`confirm-${showingId}`);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/showings/${showingId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(data.error || "Could not confirm the showing.");
+        return;
+      }
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function assignBroker(showingId: string) {
+    if (!brokerId) return;
+    setBusy(`assign-${showingId}`);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/showings/${showingId}/broker/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerUserId: brokerId, idempotencyKey: crypto.randomUUID() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(data.error || "Could not assign the broker.");
+        return;
+      }
+      setAssignFor(null);
+      setBrokerId("");
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const unitLabel = (unitId: string) =>
     units.find((u) => u.id === unitId)?.label ?? unitId.slice(0, 8);
@@ -108,6 +168,12 @@ export function ShowingsMonitor() {
           </select>
         </div>
 
+        {actionError && (
+          <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {actionError}
+          </p>
+        )}
+
         {loading ? (
           <p className="text-sm text-slate-400">Loading…</p>
         ) : visible.length === 0 ? (
@@ -153,6 +219,64 @@ export function ShowingsMonitor() {
                   <p className="mt-2 text-xs text-slate-600">
                     Outcome: <span className="font-medium">{s.outcome}</span>
                   </p>
+                )}
+                {s.state === "RESIDENT_ACCEPTED" && (
+                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => confirmShowing(s.id)}
+                        disabled={busy !== null}
+                        className="rounded-lg bg-brand-violet px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {busy === `confirm-${s.id}` ? "…" : "Confirm showing"}
+                      </button>
+                      {assignFor === s.id ? (
+                        <button
+                          onClick={() => {
+                            setAssignFor(null);
+                            setBrokerId("");
+                          }}
+                          className="rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:text-slate-800"
+                        >
+                          Cancel
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setAssignFor(s.id)}
+                          disabled={brokers.length === 0 || busy !== null}
+                          title={brokers.length === 0 ? "No brokers registered yet" : undefined}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40"
+                        >
+                          Assign broker
+                        </button>
+                      )}
+                    </div>
+                    {assignFor === s.id && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={brokerId}
+                          onChange={(e) => setBrokerId(e.target.value)}
+                          aria-label="Select broker"
+                          className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-brand-violet focus:outline-none"
+                        >
+                          <option value="">Select broker…</option>
+                          {brokers.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.fullName}
+                              {b.emailVerified ? "" : " (unverified)"}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => assignBroker(s.id)}
+                          disabled={!brokerId || busy !== null}
+                          className="rounded-lg bg-brand-violet px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          {busy === `assign-${s.id}` ? "…" : "Assign"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ))}

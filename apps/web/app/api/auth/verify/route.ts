@@ -17,6 +17,11 @@ import {
  * Consumes the 6-digit code (15-min TTL, 5 attempts then locked), marks the
  * email verified, consumes the invite when given (linking a resident to the
  * invite's unit), and issues the session — the user is signed in.
+ *
+ * N5: the code is ALWAYS consumed before a session is issued — an
+ * already-verified email never skips code validation. The lookup is scoped
+ * to the user's organization: the code must match the (organizationId,
+ * email) pair it was issued for.
  */
 export async function POST(req: NextRequest) {
   const limits = rateLimitPresets();
@@ -39,11 +44,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Invalid code." }, { status: 400 });
   }
-  if (user.emailVerified) {
-    // Already verified — just sign them in.
-    return issueSessionResponse(user);
-  }
 
+  // N5: always validate + consume the code for this user's organization —
+  // never issue a session on an already-verified email without a fresh code.
   const consumed = await db.verificationCodes.consume(user.organizationId, email, code);
   if (!consumed.ok) {
     const msg =

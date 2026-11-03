@@ -70,6 +70,27 @@ export function SecurityEvents() {
         <p className="text-sm text-slate-500">No security events recorded yet.</p>
       ) : (
         <div className="max-h-96 overflow-y-auto">
+          {/* F3 (2026-10-25): below sm the table becomes stacked cards carrying
+              every column — no sideways scroll at 360/390px, no data dropped. */}
+          <div className="space-y-2 sm:hidden">
+            {events.map((e) => (
+              <div key={e.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${TYPE_STYLES[e.type]}`}
+                  >
+                    {e.type.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-xs text-slate-500">{new Date(e.at).toLocaleString()}</span>
+                </div>
+                <p className="mt-1 break-all text-xs text-slate-600">
+                  {e.actorEmail ?? "—"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">{e.detail ?? "—"}</p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden sm:block">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-white">
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -100,6 +121,7 @@ export function SecurityEvents() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

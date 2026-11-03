@@ -32,6 +32,7 @@ import { DEMO_TOTP_SECRET } from "../lib/demo";
 import { POST as requestPOST } from "../app/api/showings/request/route";
 import { POST as idRequestPOST } from "../app/api/showings/[id]/request/route";
 import { POST as residentAcceptPOST } from "../app/api/showings/[id]/resident/accept/route";
+import { POST as residentDeclinePOST } from "../app/api/showings/[id]/resident/decline/route";
 import { POST as brokerAssignPOST } from "../app/api/showings/[id]/broker/assign/route";
 import { POST as brokerAcceptPOST } from "../app/api/showings/[id]/broker/accept/route";
 import { POST as confirmPOST } from "../app/api/showings/[id]/confirm/route";
@@ -280,6 +281,14 @@ describeMem("TASK-010 hardening (in-memory path)", () => {
     const created = after.filter((id: string) => !before.includes(id));
     expect(created).toHaveLength(1);
     expect(created[0]).toBe([...ids][0]);
+
+    // Cleanup (2026-10-29): F7 allows one active request per prospect+unit —
+    // release this REQUESTED showing or the E2E below cannot request unit_1
+    // for the same prospect (409).
+    const resident = await loginAs("resident@inssnapp.demo");
+    const declined = await call(residentDeclinePOST, [...ids][0], resident, {});
+    expect(declined.status).toBe(200);
+    expect(declined.json.showing.state).toBe("AVAILABLE");
   });
 
   it("full multi-role lifecycle E2E: seed → available → request → accept → broker gate → confirm → check-in → complete → outcome", async () => {

@@ -202,12 +202,46 @@ CREATE TABLE IF NOT EXISTS lead_dispositions (
                     CHECK (disposition IN ('pending', 'inhouse', 'management')),
   decided_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   decided_at        TIMESTAMPTZ,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  broker_user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+  broker_assigned_at TIMESTAMPTZ,
+  broker_assigned_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS lead_dispositions_org_idx ON lead_dispositions (organization_id);
+-- 2026-10-25 (F2): lead-broker assignment metadata for the management lead pool.
+-- OUTCOME is terminal, so "Push to broker" must NOT use the BROKER_ASSIGN engine
+-- transition (illegal from OUTCOME); it records the assignment here instead.
+ALTER TABLE lead_dispositions ADD COLUMN IF NOT EXISTS broker_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE lead_dispositions ADD COLUMN IF NOT EXISTS broker_assigned_at TIMESTAMPTZ;
+ALTER TABLE lead_dispositions ADD COLUMN IF NOT EXISTS broker_assigned_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
 
 -- ---- Broker tier profiles (Phase 7) ------------------------------------------
 -- Tier selection is free self-serve in the pilot; no payment provider wired.
+-- Prospective application profiles + Ready tier (2026-11-03).
+-- Free base for every prospective; the premium "Ready" tier is a
+-- pre-verified, ready-to-submit application (screening done once,
+-- documents recorded, application complete) so the prospective can
+-- submit instantly when a unit appears. Tier price lives in app config
+-- (lib/prospective-tiers.ts), not in the schema.
+CREATE TABLE IF NOT EXISTS prospect_profiles (
+  user_id         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  tier            TEXT NOT NULL DEFAULT 'base'
+                  CHECK (tier IN ('base', 'ready')),
+  tier_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  move_in_date    TEXT,
+  occupants       INTEGER,
+  has_pets        BOOLEAN,
+  employment_status TEXT,
+  income_range    TEXT,
+  statement       TEXT,
+  -- Document RECORDS (metadata only: type + when recorded). File
+  -- storage is a separate launch gate; management verifies the actual
+  -- documents at review.
+  documents       JSONB NOT NULL DEFAULT '[]',
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS broker_profiles (
   user_id         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -215,8 +249,27 @@ CREATE TABLE IF NOT EXISTS broker_profiles (
                   CHECK (tier IN ('trial', 'basic', 'pro')),
   tier_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   trial_ends_at   TIMESTAMPTZ,
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Broker license vetting (2026-11-03): number + state submitted at
+  -- onboarding, verified by Management/Admin against the state registry.
+  license_number    TEXT,
+  license_state     TEXT,
+  license_status    TEXT NOT NULL DEFAULT 'none'
+                    CHECK (license_status IN ('none', 'pending', 'verified', 'rejected')),
+  license_submitted_at TIMESTAMPTZ,
+  license_reviewed_at  TIMESTAMPTZ,
+  license_reviewed_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  license_review_note TEXT
 );
+
+-- Existing databases (CREATE TABLE IF NOT EXISTS does not add columns):
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_number TEXT;
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_state TEXT;
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_status TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_submitted_at TIMESTAMPTZ;
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_reviewed_at TIMESTAMPTZ;
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_reviewed_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE broker_profiles ADD COLUMN IF NOT EXISTS license_review_note TEXT;
 
 -- ---- Showing Engine (authoritative) -----------------------------------------
 CREATE TABLE IF NOT EXISTS showings (

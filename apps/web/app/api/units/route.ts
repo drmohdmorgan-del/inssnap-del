@@ -8,7 +8,15 @@ export async function GET(req: NextRequest) {
   if (!user) return unauthorized();
 
   const units = await db.units.byOrg(user.organizationId);
-  return NextResponse.json({ units });
+  // F5 (2026-10-25): attach the building name (never the street address) so
+  // prospect cards can say which building a unit is in.
+  const properties = await db.properties.byOrg(user.organizationId);
+  const names = new Map(properties.map((p) => [p.id, p.name]));
+  const withNames = units.map((u) => ({
+    ...u,
+    propertyName: names.get(u.propertyId) ?? null,
+  }));
+  return NextResponse.json({ units: withNames });
 }
 
 /**

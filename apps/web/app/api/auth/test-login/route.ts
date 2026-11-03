@@ -11,17 +11,20 @@ import {
 } from "../../../../lib/rate-limit";
 
 /**
- * Test-mode one-click sign-in (pilot testing only).
+ * Test-mode one-click sign-in (explicit local/dev opt-in only).
  *
  * POST { role: "management" | "resident" | "prospect" | "broker" }
  *
  * No password, no MFA. This is a PARALLEL test path — the real login
- * (password + MFA) is untouched. Kill-switch: INSSNAPP_TEST_MODE=0.
+ * (password + MFA) is untouched. Opt-in: INSSNAPP_TEST_MODE=1 (default off).
  *
- * Just-in-time provisioning: if the demo account doesn't exist yet (e.g.
- * a fresh production instance), it is created on demand in a "Demo Test
- * Org" — so testing works with zero setup. Demo accounts are fake
- * @inssnapp.demo users; their password hash is unusable ("!").
+ * Fail-closed:
+ * - Only the pre-seeded @inssnapp.demo accounts can sign in here. There is
+ *   NO just-in-time provisioning — unknown demo accounts are rejected, never
+ *   created.
+ * - Refuses whenever ANY non-demo organization exists (an org with at least
+ *   one user whose email is not @inssnapp.demo), so the backdoor can never be
+ *   used against real customer data even if the flag is misconfigured.
  */
 export async function POST(req: NextRequest) {
   if (!isTestModeEnabled()) {
@@ -41,37 +44,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const store = getAuthStore();
-  let user = await store.getUserByEmailAnyOrg(account.email);
-  if (!user) {
-    // Just-in-time demo provisioning (pilot testing, no setup needed).
-    const orgs = await db.orgs.list();
-    const orgId = orgs[0]?.id ?? (await db.orgs.create("Demo Test Org")).id;
-    user = await store.createUser({
-      organizationId: orgId,
-      email: account.email,
-      fullName: account.label,
-      passwordHash: "!",
-      role: account.role,
-      emailVerified: true,
-    });
-    await db.securityEvents.insert({
-      organizationId: user.organizationId,
-      type: "login_succeeded",
-      actorUserId: user.id,
-      actorEmail: user.email,
-      detail: "test-mode sign-in (demo account provisioned just-in-time)",
-    });
-  } else {
-    await db.securityEvents.insert({
-      organizationId: user.organizationId,
-      type: "login_succeeded",
-      actorUserId: user.id,
-      actorEmail: user.email,
-      detail: "test-mode sign-in",
-    });
+  // N3: never serve test sign-in alongside real customer data.
+  if (await hasNonDemoOrg()) {
+    return NextResponse.json({ error: "Test mode is disabled." }, { status: 403 });
   }
+
+  const store = getAuthStore();
+  const user = await store.getUserByEmailAnyOrg(account.email);
+  if (!user) {
+    // No just-in-time provisioning: demo accounts must be pre-seeded.
+    return NextResponse.json({ error: "Test mode is disabled." }, { status: 403 });
+  }
+  await db.securityEvents.insert({
+    organizationId: user.organizationId,
+    type: "login_succeeded",
+    actorUserId: user.id,
+    actorEmail: user.email,
+    detail: "test-mode sign-in",
+  });
   const res = await issueSessionResponse(user);
   const data = await res.json();
   return NextResponse.json({ ...data, home: account.home }, { headers: res.headers });
+}
+
+/**
+ * True when any organization holds at least one non-demo user.
+ * Demo users are the seeded @inssnapp.demo accounts; anything else marks the
+ * org as real and test sign-in is refused.
+ */
+async function hasNonDemoOrg(): Promise<boolean> {
+  const orgs = await db.orgs.list();
+  for (const org of orgs) {
+    const users = await db.users.byOrg(org.id);
+    if (users.some((u) => !u.email.toLowerCase().endsWith("@inssnapp.demo"))) {
+      return true;
+    }
+  }
+  return false;
 }

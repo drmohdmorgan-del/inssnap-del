@@ -3,6 +3,7 @@ import { getSessionUser, unauthorized, forbidden } from "../../../../../lib/auth
 import { db } from "../../../../../lib/db";
 import { isPrivileged } from "@inssnapp/auth";
 import type { Showing } from "@inssnapp/engine";
+import { computePacketReadiness } from "../../../../../lib/prospective-tiers";
 
 /**
  * Privacy-safe prospect profile (Phase 4).
@@ -59,7 +60,56 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ? Math.round((received.reduce((sum, r) => sum + r.stars, 0) / received.length) * 10) / 10
       : null;
 
+  // Ready packet (2026-11-03) — PRIVILEGED viewers only (Management
+  // vets the complete file). packetAssembled means the prospective's
+  // packet is pre-assembled (screening done, financials/documents
+  // loaded, application complete); it is NOT an approval — Management
+  // still decides every application. Residents never see this block:
+  // it carries financial/application detail.
+  let readyPacket: Record<string, unknown> | null = null;
+  if (isPrivileged(user.role)) {
+    const appProfile = await db.prospectProfiles.getOrCreate(id, user.organizationId);
+    const latest = await db.screening.latestReportForProspect(user.organizationId, id);
+    const readiness = computePacketReadiness(appProfile, latest);
+    readyPacket = {
+      tier: appProfile.tier,
+      ...readiness,
+      // Credential review (DrMorgan 2026-11-03): Management decides from
+      // VERIFIED SOURCES, never from applicant-uploaded documents or an
+      // assembled workflow document. Each credential below names its
+      // source and verification state; applicant-provided material is a
+      // record of the case, not evidence for the decision.
+      verification: [
+        {
+          credential: "Background screening",
+          source: latest ? `Checkr (${latest.mode})` : "Checkr",
+          state: latest ? latest.status : "not run",
+        },
+        {
+          credential: "Income / employment",
+          source: "Applicant-stated — no verified-income source connected yet",
+          state: "unverified",
+        },
+        {
+          credential: "Documents",
+          source: "Applicant-provided records — case record only, not evidence",
+          state: readiness.documentsLoaded ? "on record" : "missing",
+        },
+      ],
+      application: {
+        moveInDate: appProfile.moveInDate,
+        occupants: appProfile.occupants,
+        hasPets: appProfile.hasPets,
+        employmentStatus: appProfile.employmentStatus,
+        incomeRange: appProfile.incomeRange,
+        statement: appProfile.statement,
+      },
+      documents: appProfile.documents,
+    };
+  }
+
   return NextResponse.json({
+    readyPacket,
     profile: {
       fullName: target.fullName,
       emailVerified: target.emailVerified,

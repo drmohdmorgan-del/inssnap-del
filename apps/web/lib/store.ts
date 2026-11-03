@@ -111,6 +111,10 @@ export interface LeadDispositionRecord {
   decidedByUserId: string | null;
   decidedAt: string | null;
   updatedAt: string;
+  /** F2 (2026-10-25): lead-pool broker assignment (metadata, NOT engine state). */
+  brokerUserId: string | null;
+  brokerAssignedAt: string | null;
+  brokerAssignedByUserId: string | null;
 }
 
 /** Broker subscription tier profile (Phase 7). Selection is free self-serve; no payments wired. */
@@ -121,6 +125,59 @@ export interface BrokerProfile {
   tierStartedAt: string;
   /** Trial expiry (trial tier only). */
   trialEndsAt: string | null;
+  updatedAt: string;
+  /**
+   * Broker license vetting (DrMorgan 2026-11-03): a broker submits their
+   * license number + state at onboarding; Management/Admin verifies it
+   * against the state registry (manual review — most registries have no
+   * public API). No verified license = no lead assignments (gate in
+   * showing-api.ts). Status flow: none -> pending -> verified | rejected.
+   */
+  licenseNumber: string | null;
+  licenseState: string | null;
+  licenseStatus: "none" | "pending" | "verified" | "rejected";
+  licenseSubmittedAt: string | null;
+  licenseReviewedAt: string | null;
+  licenseReviewedByUserId: string | null;
+  licenseReviewNote: string | null;
+}
+
+/** Default license fields for a fresh broker profile (nothing submitted). */
+export const EMPTY_LICENSE = {
+  licenseNumber: null,
+  licenseState: null,
+  licenseStatus: "none",
+  licenseSubmittedAt: null,
+  licenseReviewedAt: null,
+  licenseReviewedByUserId: null,
+  licenseReviewNote: null,
+} as const;
+
+/** One recorded document slot on a prospective's application profile. */
+export interface ProspectDocumentRecord {
+  type: "government_id" | "proof_of_income" | "rental_history";
+  recordedAt: string;
+}
+
+/**
+ * Prospective application profile + tier (2026-11-03). Free base for
+ * everyone; the premium "Ready" tier marks a pre-verified,
+ * ready-to-submit application. Documents are metadata records — the
+ * prospective attests the document is ready; management verifies the
+ * actual documents at review (file vault is a separate launch gate).
+ */
+export interface ProspectProfile {
+  userId: string;
+  organizationId: string;
+  tier: "base" | "ready";
+  tierStartedAt: string;
+  moveInDate: string | null;
+  occupants: number | null;
+  hasPets: boolean | null;
+  employmentStatus: string | null;
+  incomeRange: string | null;
+  statement: string | null;
+  documents: ProspectDocumentRecord[];
   updatedAt: string;
 }
 
@@ -236,6 +293,7 @@ interface StoreData {
   leadDispositions: Map<string, LeadDispositionRecord>;
   /** Broker tier profiles keyed by user id (Phase 7). */
   brokerProfiles: Map<string, BrokerProfile>;
+  prospectProfiles: Map<string, ProspectProfile>;
   pmsAdapters: PmsAdapter[];
   securityEvents: SecurityEvent[];
   /** Contact-us landing page submissions (not org-scoped). */
@@ -266,6 +324,7 @@ function seed(): StoreData {
       { id: "u_admin", organizationId: "org_1", email: "admin@inssnapp.demo", fullName: "Avery Chen", passwordHash: DEMO_HASH, role: "inssnapp_admin", mfaEnabled: true, mfaSecret: DEMO_TOTP_SECRET, emailVerified: true },
       { id: "u_resident", organizationId: "org_1", email: "resident@inssnapp.demo", fullName: "Jordan Lee", passwordHash: DEMO_HASH, role: "resident", mfaEnabled: false, mfaSecret: null, emailVerified: true },
       { id: "u_prospect", organizationId: "org_1", email: "prospect@inssnapp.demo", fullName: "Taylor Brooks", passwordHash: DEMO_HASH, role: "prospect", mfaEnabled: false, mfaSecret: null, emailVerified: true },
+      { id: "u_prospect2", organizationId: "org_1", email: "prospect2@inssnapp.demo", fullName: "Sam Whitaker", passwordHash: DEMO_HASH, role: "prospect", mfaEnabled: false, mfaSecret: null, emailVerified: true },
       { id: "u_broker", organizationId: "org_1", email: "broker@inssnapp.demo", fullName: "Casey Kim", passwordHash: DEMO_HASH, role: "broker", mfaEnabled: false, mfaSecret: null, emailVerified: true },
       { id: "u_mgmt2", organizationId: "org_2", email: "manager2@inssnapp.demo", fullName: "Riley Park", passwordHash: DEMO_HASH, role: "management", mfaEnabled: false, mfaSecret: null, emailVerified: true },
     ],
@@ -288,7 +347,30 @@ function seed(): StoreData {
     invites: [],
     verificationCodes: [],
     leadDispositions: new Map(),
-    brokerProfiles: new Map(),
+    brokerProfiles: new Map([
+      // Seeded demo broker carries a verified SYNTHETIC license — the
+      // license gate (2026-11-03) blocks unverified brokers from lead
+      // assignment, and the demo broker is the assignment workhorse.
+      [
+        "u_broker",
+        {
+          userId: "u_broker",
+          organizationId: "org_1",
+          tier: "trial" as const,
+          tierStartedAt: "2026-09-01T00:00:00.000Z",
+          trialEndsAt: null,
+          updatedAt: "2026-09-01T00:00:00.000Z",
+          licenseNumber: "SYNTHETIC-MA-0001",
+          licenseState: "MA",
+          licenseStatus: "verified" as const,
+          licenseSubmittedAt: "2026-09-01T00:00:00.000Z",
+          licenseReviewedAt: "2026-09-01T00:00:00.000Z",
+          licenseReviewedByUserId: "u_mgmt",
+          licenseReviewNote: "Synthetic seed license (demo data only).",
+        },
+      ],
+    ]),
+    prospectProfiles: new Map(),
     // PMS adapter rows (TASK-007 boundary, TASK-008 working sandbox).
     // org_1 has a sandbox adapter registered (vendor fixture: yardi);
     // org_2 has none — the integrations status API reports this honestly
@@ -346,7 +428,30 @@ function seedProduction(): StoreData {
     invites: [],
     verificationCodes: [],
     leadDispositions: new Map(),
-    brokerProfiles: new Map(),
+    brokerProfiles: new Map([
+      // Seeded demo broker carries a verified SYNTHETIC license — the
+      // license gate (2026-11-03) blocks unverified brokers from lead
+      // assignment, and the demo broker is the assignment workhorse.
+      [
+        "u_broker",
+        {
+          userId: "u_broker",
+          organizationId: "org_1",
+          tier: "trial" as const,
+          tierStartedAt: "2026-09-01T00:00:00.000Z",
+          trialEndsAt: null,
+          updatedAt: "2026-09-01T00:00:00.000Z",
+          licenseNumber: "SYNTHETIC-MA-0001",
+          licenseState: "MA",
+          licenseStatus: "verified" as const,
+          licenseSubmittedAt: "2026-09-01T00:00:00.000Z",
+          licenseReviewedAt: "2026-09-01T00:00:00.000Z",
+          licenseReviewedByUserId: "u_mgmt",
+          licenseReviewNote: "Synthetic seed license (demo data only).",
+        },
+      ],
+    ]),
+    prospectProfiles: new Map(),
     pmsAdapters: [],
     securityEvents: [],
     contactSubmissions: [],
@@ -640,6 +745,32 @@ export const store = {
         decidedByUserId,
         decidedAt: disposition === "pending" ? (existing?.decidedAt ?? null) : now,
         updatedAt: now,
+        brokerUserId: existing?.brokerUserId ?? null,
+        brokerAssignedAt: existing?.brokerAssignedAt ?? null,
+        brokerAssignedByUserId: existing?.brokerAssignedByUserId ?? null,
+      };
+      db.leadDispositions.set(showingId, record);
+      return record;
+    },
+    /** F2 (2026-10-25): record a lead-pool broker assignment (metadata only). */
+    assignBroker(
+      showingId: string,
+      organizationId: string,
+      brokerUserId: string,
+      assignedByUserId: string | null,
+    ): LeadDispositionRecord {
+      const now = new Date().toISOString();
+      const existing = db.leadDispositions.get(showingId);
+      const record: LeadDispositionRecord = {
+        showingId,
+        organizationId,
+        disposition: existing?.disposition ?? "pending",
+        decidedByUserId: existing?.decidedByUserId ?? null,
+        decidedAt: existing?.decidedAt ?? null,
+        updatedAt: now,
+        brokerUserId,
+        brokerAssignedAt: now,
+        brokerAssignedByUserId: assignedByUserId,
       };
       db.leadDispositions.set(showingId, record);
       return record;
@@ -663,6 +794,7 @@ export const store = {
         tierStartedAt: now,
         trialEndsAt: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
         updatedAt: now,
+        ...EMPTY_LICENSE,
       };
       db.brokerProfiles.set(userId, profile);
       return profile;
@@ -673,6 +805,7 @@ export const store = {
       tier: BrokerProfile["tier"],
     ): BrokerProfile {
       const now = new Date().toISOString();
+      const existing = db.brokerProfiles.get(userId);
       const profile: BrokerProfile = {
         userId,
         organizationId,
@@ -681,9 +814,124 @@ export const store = {
         trialEndsAt:
           tier === "trial" ? new Date(Date.now() + 7 * 24 * 3600_000).toISOString() : null,
         updatedAt: now,
+        // Tier changes never touch the license record.
+        licenseNumber: existing?.licenseNumber ?? null,
+        licenseState: existing?.licenseState ?? null,
+        licenseStatus: existing?.licenseStatus ?? "none",
+        licenseSubmittedAt: existing?.licenseSubmittedAt ?? null,
+        licenseReviewedAt: existing?.licenseReviewedAt ?? null,
+        licenseReviewedByUserId: existing?.licenseReviewedByUserId ?? null,
+        licenseReviewNote: existing?.licenseReviewNote ?? null,
       };
       db.brokerProfiles.set(userId, profile);
       return profile;
+    },
+    /** Broker submits (or resubmits) their license for vetting -> pending. */
+    submitLicense(
+      userId: string,
+      organizationId: string,
+      licenseNumber: string,
+      licenseState: string,
+    ): BrokerProfile {
+      const profile = this.getOrCreate(userId, organizationId);
+      const now = new Date().toISOString();
+      const next: BrokerProfile = {
+        ...profile,
+        licenseNumber,
+        licenseState,
+        licenseStatus: "pending",
+        licenseSubmittedAt: now,
+        licenseReviewedAt: null,
+        licenseReviewedByUserId: null,
+        licenseReviewNote: null,
+        updatedAt: now,
+      };
+      db.brokerProfiles.set(userId, next);
+      return next;
+    },
+    /** Profiles in an org carrying a license record (the vetting queue). */
+    listLicenseQueue(organizationId: string): BrokerProfile[] {
+      return [...db.brokerProfiles.values()].filter(
+        (pr) => pr.organizationId === organizationId && pr.licenseStatus !== "none",
+      );
+    },
+    /** Management/Admin records the registry-verification outcome. */
+    reviewLicense(
+      userId: string,
+      decision: "verified" | "rejected",
+      reviewedByUserId: string,
+      note: string | null,
+    ): BrokerProfile | null {
+      const profile = db.brokerProfiles.get(userId);
+      if (!profile) return null;
+      const now = new Date().toISOString();
+      const next: BrokerProfile = {
+        ...profile,
+        licenseStatus: decision,
+        licenseReviewedAt: now,
+        licenseReviewedByUserId: reviewedByUserId,
+        licenseReviewNote: note,
+        updatedAt: now,
+      };
+      db.brokerProfiles.set(userId, next);
+      return next;
+    },
+  },
+
+  prospectProfiles: {
+    get(userId: string): ProspectProfile | null {
+      return db.prospectProfiles.get(userId) ?? null;
+    },
+    /** Get or create (new prospectives start on the free base tier). */
+    getOrCreate(userId: string, organizationId: string): ProspectProfile {
+      const existing = db.prospectProfiles.get(userId);
+      if (existing) return existing;
+      const now = new Date().toISOString();
+      const profile: ProspectProfile = {
+        userId,
+        organizationId,
+        tier: "base",
+        tierStartedAt: now,
+        moveInDate: null,
+        occupants: null,
+        hasPets: null,
+        employmentStatus: null,
+        incomeRange: null,
+        statement: null,
+        documents: [],
+        updatedAt: now,
+      };
+      db.prospectProfiles.set(userId, profile);
+      return profile;
+    },
+    /** Partial update of the application fields / tier / document records. */
+    update(
+      userId: string,
+      organizationId: string,
+      patch: Partial<
+        Pick<
+          ProspectProfile,
+          | "tier"
+          | "moveInDate"
+          | "occupants"
+          | "hasPets"
+          | "employmentStatus"
+          | "incomeRange"
+          | "statement"
+          | "documents"
+        >
+      >,
+    ): ProspectProfile {
+      const profile = this.getOrCreate(userId, organizationId);
+      const now = new Date().toISOString();
+      const next: ProspectProfile = {
+        ...profile,
+        ...patch,
+        tierStartedAt: patch.tier && patch.tier !== profile.tier ? now : profile.tierStartedAt,
+        updatedAt: now,
+      };
+      db.prospectProfiles.set(userId, next);
+      return next;
     },
   },
 
@@ -821,6 +1069,12 @@ export const store = {
         .filter((r) => r.organizationId === organizationId)
         .slice(-limit)
         .reverse();
+    },
+    latestForProspect(organizationId: string, prospectUserId: string): ScreeningReport | null {
+      const mine = db.screeningReports.filter(
+        (r) => r.organizationId === organizationId && r.prospectUserId === prospectUserId,
+      );
+      return mine.length ? mine[mine.length - 1] : null;
     },
   },
 

@@ -35,6 +35,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Showing not found." }, { status: 404 });
   }
 
+  // State guard (2026-10-29, audit finding T-1): dispositions are only
+  // meaningful for OUTCOME showings (the lead pool) — the sibling
+  // lead-assign route already enforces this; mirror it here so a direct
+  // API call cannot "direct" a showing that is not a lead.
+  if (showing.state !== "OUTCOME") {
+    return NextResponse.json(
+      { error: "Lead disposition applies only to showings with a recorded outcome." },
+      { status: 400 },
+    );
+  }
+
   const body = (await req.json().catch(() => ({}))) as { disposition?: unknown };
   if (!DISPOSITIONS.includes(body.disposition as LeadDisposition)) {
     return NextResponse.json(

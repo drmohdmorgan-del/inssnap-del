@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
     disposition: string;
     decidedAt: string | null;
     brokerAssigned: boolean;
+    brokerName: string | null;
     avgStars: number | null;
     completedAt: string;
   }> = [];
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
       const unit = await db.units.byId(s.unitId);
       const property = unit ? await db.properties.byId(unit.propertyId) : null;
       const prospect = s.prospectUserId ? await db.users.byId(s.prospectUserId) : null;
+      // F2: lead-pool assignment (metadata) takes precedence; fall back to the
+      // workflow broker for showings that went through the broker gate.
+      const leadBrokerId = disp?.brokerUserId ?? s.brokerUserId ?? null;
+      const leadBroker = leadBrokerId ? await db.users.byId(leadBrokerId) : null;
       const ratings = await db.ratings.byShowing(s.id);
       const avg =
         ratings.length > 0
@@ -71,7 +76,8 @@ export async function GET(req: NextRequest) {
         state: s.state,
         disposition: disp?.disposition ?? "pending",
         decidedAt: disp?.decidedAt ?? null,
-        brokerAssigned: !!s.brokerUserId,
+        brokerAssigned: !!leadBrokerId,
+        brokerName: leadBroker?.fullName ?? null,
         avgStars: avg,
         completedAt: s.updatedAt,
       });

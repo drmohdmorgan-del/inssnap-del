@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
     used: usage.used,
     limit: usage.limit,
     canAcceptMore: usage.canAcceptMore,
+    licenseStatus: usage.licenseStatus,
+    licenseState: usage.licenseState,
+    licenseVerified: usage.licenseVerified,
     tiers: BROKER_TIERS,
     paymentsNote:
       "Tier selection is free during the pilot — no payment provider is connected yet.",
@@ -53,5 +56,7 @@ export async function POST(req: NextRequest) {
     used: usage.used,
     limit: usage.limit,
     canAcceptMore: usage.canAcceptMore,
+    licenseStatus: usage.licenseStatus,
+    licenseVerified: usage.licenseVerified,
   });
 }

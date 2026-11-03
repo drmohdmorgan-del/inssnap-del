@@ -9,7 +9,12 @@
  */
 
 import type { Showing, ShowingEvent, ShowingState } from "@inssnapp/engine";
-import { store as mem, type SecurityEvent, type ContactSubmission } from "./store";
+import {
+  store as mem,
+  type SecurityEvent,
+  type ContactSubmission,
+  type ProspectDocumentRecord,
+} from "./store";
 
 export type { SecurityEvent };
 
@@ -78,6 +83,9 @@ export interface LeadDispositionRow {
   decidedByUserId: string | null;
   decidedAt: string | null;
   updatedAt: string;
+  brokerUserId: string | null;
+  brokerAssignedAt: string | null;
+  brokerAssignedByUserId: string | null;
 }
 
 export interface BrokerProfileRow {
@@ -86,6 +94,29 @@ export interface BrokerProfileRow {
   tier: "trial" | "basic" | "pro";
   tierStartedAt: string;
   trialEndsAt: string | null;
+  updatedAt: string;
+  /** Broker license vetting (2026-11-03) — see store.ts BrokerProfile. */
+  licenseNumber: string | null;
+  licenseState: string | null;
+  licenseStatus: "none" | "pending" | "verified" | "rejected";
+  licenseSubmittedAt: string | null;
+  licenseReviewedAt: string | null;
+  licenseReviewedByUserId: string | null;
+  licenseReviewNote: string | null;
+}
+
+export interface ProspectProfileRow {
+  userId: string;
+  organizationId: string;
+  tier: "base" | "ready";
+  tierStartedAt: string;
+  moveInDate: string | null;
+  occupants: number | null;
+  hasPets: boolean | null;
+  employmentStatus: string | null;
+  incomeRange: string | null;
+  statement: string | null;
+  documents: ProspectDocumentRecord[];
   updatedAt: string;
 }
 
@@ -252,13 +283,21 @@ function verificationCodeColumns(): string {
 function leadDispositionColumns(): string {
   return `showing_id AS "showingId", organization_id AS "organizationId", disposition,
           decided_by_user_id AS "decidedByUserId", decided_at AS "decidedAt",
-          updated_at AS "updatedAt"`;
+          updated_at AS "updatedAt",
+          broker_user_id AS "brokerUserId", broker_assigned_at AS "brokerAssignedAt",
+          broker_assigned_by_user_id AS "brokerAssignedByUserId"`;
 }
 
 function brokerProfileColumns(): string {
   return `user_id AS "userId", organization_id AS "organizationId", tier,
           tier_started_at AS "tierStartedAt", trial_ends_at AS "trialEndsAt",
-          updated_at AS "updatedAt"`;
+          updated_at AS "updatedAt",
+          license_number AS "licenseNumber", license_state AS "licenseState",
+          license_status AS "licenseStatus",
+          license_submitted_at AS "licenseSubmittedAt",
+          license_reviewed_at AS "licenseReviewedAt",
+          license_reviewed_by_user_id AS "licenseReviewedByUserId",
+          license_review_note AS "licenseReviewNote"`;
 }
 
 // ---- Unified data access ----------------------------------------------------
@@ -1023,6 +1062,25 @@ export const db = {
       return res.rows;
     },
 
+    /** Latest screening report for one prospective (Ready-packet check). */
+    async latestReportForProspect(
+      organizationId: string,
+      prospectUserId: string,
+    ): Promise<ScreeningReportRow | null> {
+      if (!usingPostgres) return mem.screeningReports.latestForProspect(organizationId, prospectUserId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT id, organization_id AS "organizationId",
+                prospect_user_id AS "prospectUserId", mode, status, detail,
+                requested_at AS "requestedAt", completed_at AS "completedAt",
+                requested_by AS "requestedBy"
+         FROM screening_reports
+         WHERE organization_id = $1 AND prospect_user_id = $2
+         ORDER BY requested_at DESC LIMIT 1`,
+        [organizationId, prospectUserId],
+      );
+      return res.rows[0] ?? null;
+    },
     async recordLegalApproval(
       organizationId: string,
       approvedBy: string,
@@ -1480,6 +1538,31 @@ export const db = {
       );
       return res.rows[0];
     },
+    /** F2 (2026-10-25): record a lead-pool broker assignment (metadata only). */
+    async assignBroker(
+      showingId: string,
+      organizationId: string,
+      brokerUserId: string,
+      assignedByUserId: string | null,
+    ): Promise<LeadDispositionRow> {
+      if (!usingPostgres)
+        return mem.leadDispositions.assignBroker(showingId, organizationId, brokerUserId, assignedByUserId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO lead_dispositions
+           (showing_id, organization_id, disposition, broker_user_id, broker_assigned_at,
+            broker_assigned_by_user_id, updated_at)
+         VALUES ($1, $2, 'pending', $3, now(), $4, now())
+         ON CONFLICT (showing_id) DO UPDATE SET
+           broker_user_id = EXCLUDED.broker_user_id,
+           broker_assigned_at = EXCLUDED.broker_assigned_at,
+           broker_assigned_by_user_id = EXCLUDED.broker_assigned_by_user_id,
+           updated_at = now()
+         RETURNING ${leadDispositionColumns()}`,
+        [showingId, organizationId, brokerUserId, assignedByUserId],
+      );
+      return res.rows[0];
+    },
   },
 
   // ---- Broker tier profiles (Phase 7) ------------------------------------------
@@ -1534,5 +1617,144 @@ export const db = {
       );
       return res.rows[0];
     },
+    /** Broker submits (or resubmits) their license for vetting -> pending. */
+    async submitLicense(
+      userId: string,
+      organizationId: string,
+      licenseNumber: string,
+      licenseState: string,
+    ): Promise<BrokerProfileRow> {
+      if (!usingPostgres)
+        return mem.brokerProfiles.submitLicense(userId, organizationId, licenseNumber, licenseState);
+      await this.getOrCreate(userId, organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE broker_profiles SET
+           license_number = $2, license_state = $3, license_status = 'pending',
+           license_submitted_at = now(), license_reviewed_at = NULL,
+           license_reviewed_by_user_id = NULL, license_review_note = NULL,
+           updated_at = now()
+         WHERE user_id = $1
+         RETURNING ${brokerProfileColumns()}`,
+        [userId, licenseNumber, licenseState],
+      );
+      return res.rows[0];
+    },
+    /** Management/Admin records the registry-verification outcome. */
+    async reviewLicense(
+      userId: string,
+      decision: "verified" | "rejected",
+      reviewedByUserId: string,
+      note: string | null,
+    ): Promise<BrokerProfileRow | null> {
+      if (!usingPostgres)
+        return mem.brokerProfiles.reviewLicense(userId, decision, reviewedByUserId, note);
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE broker_profiles SET
+           license_status = $2, license_reviewed_at = now(),
+           license_reviewed_by_user_id = $3, license_review_note = $4,
+           updated_at = now()
+         WHERE user_id = $1
+         RETURNING ${brokerProfileColumns()}`,
+        [userId, decision, reviewedByUserId, note],
+      );
+      return res.rows[0] ?? null;
+    },
+    /** All broker profiles in an org that carry a license record (vetting queue). */
+    async listLicenseQueue(organizationId: string): Promise<BrokerProfileRow[]> {
+      if (!usingPostgres) return mem.brokerProfiles.listLicenseQueue(organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${brokerProfileColumns()} FROM broker_profiles
+         WHERE organization_id = $1 AND license_status <> 'none'
+         ORDER BY license_submitted_at DESC`,
+        [organizationId],
+      );
+      return res.rows;
+    },
+  },
+
+  // ---- Prospective application profiles + Ready tier (2026-11-03) ---------
+  prospectProfiles: {
+    async get(userId: string): Promise<ProspectProfileRow | null> {
+      if (!usingPostgres) return mem.prospectProfiles.get(userId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `SELECT ${prospectProfileColumns()} FROM prospect_profiles WHERE user_id = $1`,
+        [userId],
+      );
+      return res.rows[0] ?? null;
+    },
+    async getOrCreate(userId: string, organizationId: string): Promise<ProspectProfileRow> {
+      if (!usingPostgres) return mem.prospectProfiles.getOrCreate(userId, organizationId);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO prospect_profiles (user_id, organization_id)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING ${prospectProfileColumns()}`,
+        [userId, organizationId],
+      );
+      if (res.rows[0]) return res.rows[0];
+      const existing = await pool.query(
+        `SELECT ${prospectProfileColumns()} FROM prospect_profiles WHERE user_id = $1`,
+        [userId],
+      );
+      return existing.rows[0];
+    },
+    async update(
+      userId: string,
+      organizationId: string,
+      patch: Partial<
+        Pick<
+          ProspectProfileRow,
+          | "tier"
+          | "moveInDate"
+          | "occupants"
+          | "hasPets"
+          | "employmentStatus"
+          | "incomeRange"
+          | "statement"
+          | "documents"
+        >
+      >,
+    ): Promise<ProspectProfileRow> {
+      if (!usingPostgres) return mem.prospectProfiles.update(userId, organizationId, patch);
+      const current = await this.getOrCreate(userId, organizationId);
+      const next = { ...current, ...patch };
+      const pool = await getPool();
+      const res = await pool.query(
+        `UPDATE prospect_profiles SET
+           tier = $2,
+           tier_started_at = CASE WHEN $2 <> $3 THEN now() ELSE tier_started_at END,
+           move_in_date = $4, occupants = $5, has_pets = $6,
+           employment_status = $7, income_range = $8, statement = $9,
+           documents = $10::jsonb, updated_at = now()
+         WHERE user_id = $1
+         RETURNING ${prospectProfileColumns()}`,
+        [
+          userId,
+          next.tier,
+          current.tier,
+          next.moveInDate,
+          next.occupants,
+          next.hasPets,
+          next.employmentStatus,
+          next.incomeRange,
+          next.statement,
+          JSON.stringify(next.documents ?? []),
+        ],
+      );
+      return res.rows[0];
+    },
   },
 };
+
+function prospectProfileColumns(): string {
+  return `user_id AS "userId", organization_id AS "organizationId", tier,
+          tier_started_at AS "tierStartedAt", move_in_date AS "moveInDate",
+          occupants, has_pets AS "hasPets",
+          employment_status AS "employmentStatus", income_range AS "incomeRange",
+          statement, documents, updated_at AS "updatedAt"`;
+}

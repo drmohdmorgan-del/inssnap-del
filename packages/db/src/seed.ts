@@ -34,6 +34,7 @@ const DEMO_USERS = [
   { email: "admin@inssnapp.demo", fullName: "Avery Chen", role: "inssnapp_admin", mfa: true },
   { email: "resident@inssnapp.demo", fullName: "Jordan Lee", role: "resident", mfa: false },
   { email: "prospect@inssnapp.demo", fullName: "Taylor Brooks", role: "prospect", mfa: false },
+  { email: "prospect2@inssnapp.demo", fullName: "Sam Whitaker", role: "prospect", mfa: false },
   { email: "broker@inssnapp.demo", fullName: "Casey Kim", role: "broker", mfa: false },
   { email: "manager2@inssnapp.demo", fullName: "Riley Park", role: "management", mfa: false, org: 1 },
 ] as const;

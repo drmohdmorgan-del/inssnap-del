@@ -1,14 +1,15 @@
 /**
  * Test mode (pilot testing) — one-click role sign-in, no credentials.
  *
- * Enabled by default while the platform is in pilot testing; disable with
- *   INSSNAPP_TEST_MODE=0
- * before real launch. This is a PARALLEL test path — production auth
+ * DEFAULT OFF. Enable explicitly and only for local/dev pilot testing with
+ *   INSSNAPP_TEST_MODE=1
+ * Never enable in production. This is a PARALLEL test path — production auth
  * (password + MFA + sessions) is untouched.
  *
- * Fail-closed: test sign-in only succeeds when the seeded demo accounts
- * exist. Production instances (bootstrap admin only, no demo users) reject
- * every test sign-in attempt.
+ * Fail-closed: test sign-in only succeeds when (a) test mode is explicitly
+ * enabled AND (b) the seeded demo accounts exist AND (c) no non-demo
+ * organization exists. There is no just-in-time provisioning — demo accounts
+ * are never created on demand.
  */
 
 /** Demo accounts backing test-mode sign-in (password `pw` convention). */
@@ -22,5 +23,6 @@ export const TEST_MODE_ACCOUNTS = [
 export type TestModeRole = (typeof TEST_MODE_ACCOUNTS)[number]["role"];
 
 export function isTestModeEnabled(): boolean {
-  return process.env.INSSNAPP_TEST_MODE !== "0";
+  // Explicit opt-in only. Absent/misconfigured env can never enable it.
+  return process.env.INSSNAPP_TEST_MODE === "1";
 }

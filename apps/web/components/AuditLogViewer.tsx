@@ -16,9 +16,13 @@ type AuditEvent = {
   at: string;
 };
 
+// Engine transition names (packages/engine TRANSITION_TABLE). Fixed
+// 2026-10-29: the list previously offered "REQUEST", which no stored event
+// ever carries (the real name is PROSPECT_REQUEST), so that filter option
+// could only ever return an empty log. EXPIRE added for completeness.
 const TRANSITIONS = [
   "",
-  "REQUEST",
+  "PROSPECT_REQUEST",
   "RESIDENT_ACCEPT",
   "RESIDENT_DECLINE",
   "BROKER_ASSIGN",
@@ -28,6 +32,7 @@ const TRANSITIONS = [
   "CHECK_IN",
   "COMPLETE",
   "RECORD_OUTCOME",
+  "EXPIRE",
 ];
 
 export function AuditLogViewer() {
@@ -97,6 +102,27 @@ export function AuditLogViewer() {
         <p className="text-sm text-slate-500">No events match these filters.</p>
       ) : (
         <div className="max-h-96 overflow-y-auto">
+          {/* F3 (2026-10-25): below sm the table becomes stacked cards carrying
+              every column — no sideways scroll at 360/390px, no data dropped. */}
+          <div className="space-y-2 sm:hidden">
+            {events.map((e) => (
+              <div key={e.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-semibold text-slate-700">
+                    {e.transition}
+                  </span>
+                  <span className="text-xs text-slate-500">{new Date(e.at).toLocaleString()}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  {e.fromState} → {e.toState} · {e.actorRole}
+                </p>
+                <p className="mt-0.5 break-all font-mono text-xs text-slate-400">
+                  {e.showingId}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden sm:block">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-white">
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -127,6 +153,7 @@ export function AuditLogViewer() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

@@ -126,6 +126,137 @@ function TierCard({ tier, onChanged }: { tier: TierInfo | null; onChanged: () =>
   );
 }
 
+type LicenseInfo = {
+  licenseNumber: string | null;
+  licenseState: string | null;
+  licenseStatus: "none" | "pending" | "verified" | "rejected";
+  licenseReviewNote: string | null;
+  registry: { authority: string; lookupUrl: string | null } | null;
+};
+
+const LICENSE_BADGE: Record<LicenseInfo["licenseStatus"], string> = {
+  none: "bg-slate-200 text-slate-700",
+  pending: "bg-amber-100 text-amber-800",
+  verified: "bg-emerald-100 text-emerald-800",
+  rejected: "bg-red-100 text-red-800",
+};
+
+/**
+ * Broker license vetting card (2026-11-03): submit license number +
+ * state; Management verifies against the state registry. No verified
+ * license = no lead assignments.
+ */
+function LicenseCard() {
+  const [info, setInfo] = useState<LicenseInfo | null>(null);
+  const [number, setNumber] = useState("");
+  const [state, setState] = useState("MA");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/brokers/me/license");
+      if (res.ok) setInfo(await res.json());
+    } catch {
+      // Card is additive; the queue works without it.
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/brokers/me/license", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseNumber: number, licenseState: state }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Could not submit your license.");
+        return;
+      }
+      await load();
+    } catch {
+      setError("Could not submit your license.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!info) return null;
+  const canSubmit = info.licenseStatus === "none" || info.licenseStatus === "rejected";
+  return (
+    <MCard>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-slate-900">Broker license</h3>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${LICENSE_BADGE[info.licenseStatus]}`}>
+          {info.licenseStatus}
+        </span>
+      </div>
+      {info.licenseStatus === "verified" && (
+        <p className="mt-1 text-xs text-slate-600">
+          License {info.licenseNumber} ({info.licenseState}) verified
+          {info.registry ? ` with the ${info.registry.authority}` : ""}. You can receive lead
+          assignments.
+        </p>
+      )}
+      {info.licenseStatus === "pending" && (
+        <p className="mt-1 text-xs text-slate-600">
+          License {info.licenseNumber} ({info.licenseState}) is awaiting verification by
+          management. Lead assignments unlock once it verifies.
+        </p>
+      )}
+      {info.licenseStatus === "none" && (
+        <p className="mt-1 text-xs text-slate-600">
+          Submit your real-estate license for verification — you cannot receive lead assignments
+          until management verifies it against the state registry.
+        </p>
+      )}
+      {info.licenseStatus === "rejected" && (
+        <p className="mt-1 text-xs text-red-700">
+          Your license submission was rejected
+          {info.licenseReviewNote ? `: ${info.licenseReviewNote}` : ""}. Check the number and
+          resubmit.
+        </p>
+      )}
+      {canSubmit && (
+        <div className="mt-3 space-y-2">
+          <input
+            type="text"
+            value={number}
+            onChange={(e) => setNumber(e.target.value)}
+            placeholder="License number"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value.toUpperCase().slice(0, 2))}
+              placeholder="State (e.g. MA)"
+              className="w-24 rounded-xl border border-slate-300 px-3 py-2.5 text-sm uppercase"
+            />
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={busy || !number.trim() || state.length !== 2}
+              className="flex-1 rounded-xl bg-brand-violet px-3 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
+            >
+              {busy ? "Submitting…" : "Submit for verification"}
+            </button>
+          </div>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+      )}
+    </MCard>
+  );
+}
+
 export default function MobileBrokerPage() {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -235,6 +366,7 @@ export default function MobileBrokerPage() {
       )}
 
       <TierCard tier={tier} onChanged={loadTier} />
+      <LicenseCard />
 
       <SectionTitle>Assignment queue</SectionTitle>
       <p className="mb-3 text-sm text-slate-500">

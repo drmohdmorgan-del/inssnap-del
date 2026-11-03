@@ -18,9 +18,8 @@ import {
  *
  * - resident REQUIRES an invite code (management invites the current tenant);
  *   the new account is linked to the invite's unit after verification.
- * - prospect/broker may sign up with or without an invite; without one they
- *   join the platform's first organization (pilot simplification — the
- *   invite's organization wins when a code is given).
+ * - prospect/broker REQUIRE an invite code. Invite-less signups are rejected —
+ *   they must never silently join the platform's first organization (N4).
  * - management / inssnapp_admin can NEVER self-register (fail closed).
  *
  * The account is created UNVERIFIED; a 6-digit email code is issued
@@ -75,35 +74,32 @@ export async function POST(req: NextRequest) {
       ? body.inviteCode.trim()
       : null;
 
-  if (inviteCode) {
-    const invite = await db.invites.byCodeAnyOrg(inviteCode);
-    if (!invite || invite.usedAt || new Date(invite.expiresAt).getTime() <= Date.now()) {
-      return NextResponse.json({ error: "That invite code is invalid or expired." }, { status: 400 });
-    }
-    if (invite.role !== role) {
-      return NextResponse.json(
-        { error: `That invite code is for a ${invite.role} account.` },
-        { status: 400 },
-      );
-    }
-    organizationId = invite.organizationId;
-  } else if (role === "resident") {
+  if (!inviteCode) {
+    // N4: every role needs an invite code. Invite-less signups must never
+    // silently join the first organization.
+    const who =
+      role === "resident"
+        ? "A resident account"
+        : role === "prospect"
+          ? "A prospect account"
+          : "A broker account";
     return NextResponse.json(
-      { error: "A resident account needs an invite code from your property manager." },
+      { error: `${who} needs an invite code. Ask your property manager for one.` },
       { status: 400 },
     );
   }
 
-  if (!organizationId) {
-    // Pilot simplification: invite-less prospect/broker signups join the
-    // first organization. Documented in the audit; revisit with real org
-    // selection before launch.
-    const orgs = await db.orgs.list();
-    if (orgs.length === 0) {
-      return NextResponse.json({ error: "No organization is accepting signups." }, { status: 503 });
-    }
-    organizationId = orgs[0].id;
+  const invite = await db.invites.byCodeAnyOrg(inviteCode);
+  if (!invite || invite.usedAt || new Date(invite.expiresAt).getTime() <= Date.now()) {
+    return NextResponse.json({ error: "That invite code is invalid or expired." }, { status: 400 });
   }
+  if (invite.role !== role) {
+    return NextResponse.json(
+      { error: `That invite code is for a ${invite.role} account.` },
+      { status: 400 },
+    );
+  }
+  organizationId = invite.organizationId;
 
   const store = getAuthStore();
   const existing = await store.getUserByEmail(email, organizationId);

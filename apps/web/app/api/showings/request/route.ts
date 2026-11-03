@@ -4,6 +4,7 @@ import { engine } from "../../../../lib/engine";
 import { db } from "../../../../lib/db";
 import { notifyShowingTransition } from "../../../../lib/notifications";
 import { transitionStatus } from "../../../../lib/showing-api";
+import { computePacketReadiness } from "../../../../lib/prospective-tiers";
 import {
   checkRateLimit,
   rateLimitExceeded,
@@ -65,12 +66,42 @@ export async function POST(req: NextRequest) {
 
   // Idempotent retry: the key already produced a request — replay it.
   // TASK-010: the lookup is scoped to the caller's organization.
+  // ORDER (2026-10-25, F7 fix): the replay check MUST precede the duplicate
+  // guard below — otherwise a legitimate client retry (same key) after a
+  // timeout would be rejected with 409 instead of replayed.
   const prior = await db.showingEvents.findByIdempotencyKey(idempotencyKey, user.organizationId);
   if (prior) {
     const showing = await db.showings.get(prior.showingId);
     if (showing && showing.organizationId === user.organizationId) {
       return NextResponse.json({ showing, event: prior, replayed: true });
     }
+  }
+
+  // F7 (2026-10-25): one active request per prospect per unit. Without this,
+  // a second request with a fresh idempotency key created a second showing
+  // for the same unit. Terminal states (COMPLETED/OUTCOME) do not block a
+  // future request; AVAILABLE showings carry no prospect yet.
+  const ACTIVE_REQUEST_STATES = [
+    "REQUESTED",
+    "RESIDENT_ACCEPTED",
+    "BROKER_GATE",
+    "CONFIRMED",
+    "IN_PROGRESS",
+  ];
+  const existing = (await db.showings.list(user.organizationId)).find(
+    (s: { prospectUserId: string | null; unitId: string; state: string }) =>
+      s.prospectUserId === user.userId &&
+      s.unitId === unitId &&
+      ACTIVE_REQUEST_STATES.includes(s.state),
+  );
+  if (existing) {
+    return NextResponse.json(
+      {
+        error: "You already have an active request for this unit.",
+        showingId: existing.id,
+      },
+      { status: 409 },
+    );
   }
 
   const showing = await db.showings.create(
@@ -152,8 +183,24 @@ export async function POST(req: NextRequest) {
   // and never breaks the already-committed transition.
   await notifyShowingTransition("PROSPECT_REQUEST", result.showing, user.role);
 
+  // Ready mechanic (DrMorgan 2026-11-03): a Ready prospective's standing,
+  // pre-assembled application IS the submission — there is no assembly
+  // step at submit time. The packet lives on the prospective's profile
+  // (Management opens it from this showing's prospect) and is submitted
+  // by reference with the request; the response confirms it.
+  const appProfile = await db.prospectProfiles.getOrCreate(user.userId, user.organizationId);
+  const latestScreening = await db.screening.latestReportForProspect(
+    user.organizationId,
+    user.userId,
+  );
+  const readiness = computePacketReadiness(appProfile, latestScreening);
+  const readyApplication =
+    appProfile.tier === "ready" && readiness.packetAssembled
+      ? { submitted: true as const, tier: appProfile.tier, packetAssembled: true as const }
+      : { submitted: false as const, tier: appProfile.tier, packetAssembled: readiness.packetAssembled };
+
   return NextResponse.json(
-    { showing: result.showing, event: result.event, replayed: false },
+    { showing: result.showing, event: result.event, replayed: false, readyApplication },
     { status: 201 },
   );
 }
