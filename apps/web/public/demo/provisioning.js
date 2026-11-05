@@ -60,6 +60,13 @@ const DEMO_PROVISIONED_ACCOUNTS = [
     token: "0637f9322709214ed0ee6949386df39057f0685dc118fdec",
     status: "paused",
     issuedAt: "2026-11-05T07:45:16-05:00"
+  },
+  {
+    email: "esteadysteps@gmail.com",
+    name: "Mohamed Ismail",
+    token: "f53c67ac9307343aa436c846e2979323437dfa8933c4c6d8",
+    status: "invited",
+    issuedAt: "2026-11-05T07:58:14-05:00"
   }
 ];
 
