@@ -1011,7 +1011,7 @@ if (typeof document !== "undefined") {
     $("sign-out-btn").addEventListener("click", () => {
       stopAuto();
       flowStop();
-      reportActivity("action", "sign_out");
+      reportActivity("logout");
       demoSignOut();
       $("demo-shell").hidden = true;
       $("lock-screen").hidden = false;
