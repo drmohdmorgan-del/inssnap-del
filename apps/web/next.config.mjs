@@ -4,6 +4,17 @@ const nextConfig = {
   transpilePackages: ["@inssnapp/engine", "@inssnapp/auth", "@inssnapp/db"],
   // argon2 loads a native binding at runtime — never bundle it.
   serverExternalPackages: ["argon2"],
+  // Hidden demo portal: static files under public/demo/ are served at
+  // /demo, /demo/app, /demo/activate (Next redirects /demo/ to /demo —
+  // /demo with a trailing slash stripped, then finds no page).
+  // No public page links here; noindex meta on every demo page.
+  async rewrites() {
+    return [
+      { source: "/demo", destination: "/demo/index.html" },
+      { source: "/demo/app", destination: "/demo/app/index.html" },
+      { source: "/demo/activate", destination: "/demo/activate/index.html" },
+    ];
+  },
   /**
    * Secure HTTP headers — TASK-010.
    *

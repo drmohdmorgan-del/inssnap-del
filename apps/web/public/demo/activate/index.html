@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Activate your INSNAPP demo account | INSNAPP</title>
+<meta name="description" content="Activate an INSNAPP demo account provisioned for you: set your own password from your one-time activation link. Access is for those who have signed the IEC CNDA.">
+<style>
+  /* INSNAPP design system (from the product, apps/web/app/globals.css). */
+  :root {
+    --ink: #0a0a2e;
+    --ink-soft: #3f3f63;
+    --muted: #64748b;
+    --violet: #7b2ff7;
+    --violet-dark: #5f21c9;
+    --violet-soft: #f1eafd;
+    --amber-soft: #fdf0d5;
+    --coral: #fb7185;
+    --card: #ffffff;
+    --line: #e2e8f0;
+    --radius: 18px;
+    --shadow: 0 8px 24px rgba(10, 10, 46, 0.08), 0 2px 6px rgba(10, 10, 46, 0.05);
+    --sans: "Avenir Next", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--sans); line-height: 1.55;
+    background: linear-gradient(160deg, #f8fafc 0%, #eef2ff 55%, #f5f0ff 100%);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; }
+  a { color: var(--violet-dark); }
+  :focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding-inline: clamp(1rem, 4vw, 2.5rem); }
+
+  .nav {
+    max-width: 1060px; margin: 0 auto;
+    padding: .8rem clamp(1rem, 4vw, 2.5rem);
+    display: flex; align-items: center; justify-content: flex-end; gap: 1.5rem;
+    font-size: .9rem; font-weight: 600; color: var(--ink-soft);
+  }
+  .nav a { text-decoration: none; color: var(--ink-soft); }
+  .nav a:hover { color: var(--violet-dark); }
+  .nav-brand { margin-right: auto; flex: 0 0 auto; display: flex; align-items: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: 12px; padding: 11px 18px;
+    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none;
+    transition: transform .05s ease, opacity .15s; background: var(--violet); color: #fff;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:hover { background: var(--violet-dark); }
+  .btn-ghost { background: #eef2f7; color: var(--ink); }
+  .btn-ghost:hover { background: #e2e8f0; }
+
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--violet); margin: 0 0 1rem; }
+  h2 { font-size: clamp(1.4rem, 3vw, 1.8rem); margin: 0 0 .8rem; font-weight: 800; color: var(--ink); text-wrap: balance; }
+  .lede { color: var(--ink-soft); max-width: 640px; font-size: 16.5px; line-height: 1.55; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+
+  .section { padding-block: clamp(2.2rem, 5vw, 3.6rem); }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; border: 1px solid rgba(226, 232, 240, 0.7); }
+  .form-card { max-width: 520px; margin: 0 auto; padding: clamp(1.2rem, 3vw, 2rem); }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .field input { width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fbfcfe; color: var(--ink); font-size: 14px; outline: none; }
+  .field input:focus { border-color: var(--violet); background: #fff; }
+  .field .hint { font-size: .82rem; color: var(--muted); margin-top: .3rem; }
+  .form-msg { border-radius: 12px; padding: 11px 13px; font-size: 13.5px; margin-bottom: 1rem; }
+  .form-msg.error { background: #fdecec; color: #8c1d18; }
+  .form-msg.ok { background: var(--violet-soft); color: #075e54; }
+  .cnda-note { background: var(--amber-soft); border-radius: 12px; padding: 11px 13px; font-size: 13.5px; line-height: 1.45; margin-bottom: 1.2rem; color: #7c5203; }
+
+  .footer { padding: 2rem clamp(1rem, 4vw, 2.5rem) 3rem; color: var(--muted); font-size: 12.5px; }
+  .footer-inner { max-width: 1060px; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<header class="nav">
+  <a class="nav-brand" href="/" aria-label="INSNAPP home">
+    <img src="/brand/inssnapp-logo.png" width="34" height="34" alt="" style="display:block;">
+    <span style="line-height:1;margin-left:8px;"><span style="font-weight:800;font-size:21px;color:#0a0a2e;">INSSNAPP</span><span style="display:block;font-size:7.2px;letter-spacing:.18em;color:#64748b;font-weight:700;margin-top:2px;">RESIDENT-POWERED LEASING INFRASTRUCTURE</span></span>
+  </a>
+  <a href="/demo">Demo Portal</a>
+</header>
+
+<main>
+  <section>
+    <div class="wrap section">
+      <div class="card form-card">
+        <p class="eyebrow">Demo Portal</p>
+        <h2>Activate your demo account</h2>
+
+        <div id="act-msg"></div>
+
+        <!-- State: link accepted — set a password -->
+        <div id="act-ready" hidden>
+          <div class="cnda-note">This activation link is <strong>one-time</strong>: it stops working once you set your password. Demo access is for those who have <strong>signed the IEC Confidentiality &amp; Non-Disclosure Agreement (CNDA)</strong>.</div>
+          <p class="small">Account: <strong id="act-name"></strong><br><span class="muted" id="act-email"></span></p>
+          <form id="activate-form" novalidate>
+            <div class="field">
+              <label for="ac-password">Choose your password</label>
+              <input id="ac-password" name="password" type="password" autocomplete="new-password" required>
+              <p class="hint">At least 8 characters. IEC never sends passwords by email — this password is yours alone.</p>
+            </div>
+            <div class="field">
+              <label for="ac-confirm">Confirm password</label>
+              <input id="ac-confirm" name="confirm" type="password" autocomplete="new-password" required>
+            </div>
+            <button class="btn" type="submit" style="width:100%;">Set password &amp; activate</button>
+          </form>
+        </div>
+
+        <!-- State: activated -->
+        <div id="act-done" hidden>
+          <p class="lede" style="font-size:1rem;">Your demo account is active and you are signed in. Next time, sign in from the portal with this email address and the password you just set.</p>
+          <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.2rem;">
+            <a class="btn" href="/demo/app/" rel="nofollow">Open the INSNAPP demo &rarr;</a>
+            <a class="btn btn-ghost" href="/demo">Go to the Demo Portal</a>
+          </div>
+        </div>
+
+        <!-- State: link refused (unknown / used / paused / revoked) -->
+        <div id="act-blocked" hidden>
+          <p id="act-blocked-text"></p>
+          <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.2rem;">
+            <a class="btn btn-ghost" href="/demo">Go to the Demo Portal</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>© 2026 International Empire Consultants, Inc. All rights reserved. · Developed by IEC, Inc.</span>
+    <span><a href="mailto:info@iecincglobal.com">info@iecincglobal.com</a> · INSNAPP Demo Portal — synthetic data only</span>
+  </div>
+</footer>
+
+<script src="/demo/provisioning.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   INSNAPP Demo Portal — activation page.
+   The one door in: IEC provisions the account (/demo/provisioning.js),
+   the signer arrives from the activation email with a one-time token,
+   and sets their OWN password here. The token dies on use — the
+   activation is recorded in the shared local store the portal reads,
+   so a used link can never set a password again. Links do not expire;
+   access is controlled administratively by the provisioned status
+   (invited / active / paused / revoked) in provisioning.js.
+   Static-stack simulation, same store as the portal (origin-scoped).
+   ===================================================================== */
+
+/* ---- Storage: localStorage in the browser, in-memory under test ---- */
+const DemoStore = (() => {
+  let mem = {};
+  const hasLS = typeof localStorage !== "undefined";
+  return {
+    get(k) {
+      if (hasLS) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+      return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+    },
+    set(k, v) {
+      if (hasLS) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
+      else { mem[k] = v; }
+    },
+    remove(k) {
+      if (hasLS) { try { localStorage.removeItem(k); } catch (e) { /* noop */ } }
+      else { delete mem[k]; }
+    },
+    _reset() { mem = {}; }
+  };
+})();
+
+const ACCOUNTS_KEY = "insnapp_demo_accounts";
+const SESSION_KEY = "insnapp_demo_session";
+const ACTIVATIONS_KEY = "insnapp_demo_activations";
+
+/* Same seed as the portal, so the shared account store merges cleanly. */
+const DEMO_SEED_ACCOUNTS = [
+  { name: "Demo Reviewer", email: "demo@insnapp.example", password: "InsnappDemo#2026" }
+];
+
+function normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
+
+function loadAccounts() {
+  const stored = DemoStore.get(ACCOUNTS_KEY);
+  const accounts = Array.isArray(stored) ? stored.slice() : [];
+  for (const seed of DEMO_SEED_ACCOUNTS) {
+    if (!accounts.some(a => normalizeEmail(a.email) === normalizeEmail(seed.email))) {
+      accounts.push({ name: seed.name, email: normalizeEmail(seed.email), password: seed.password, seed: true });
+    }
+  }
+  return accounts;
+}
+
+function saveAccounts(accounts) { DemoStore.set(ACCOUNTS_KEY, accounts); }
+
+function findAccount(email) {
+  const e = normalizeEmail(email);
+  return loadAccounts().find(a => normalizeEmail(a.email) === e) || null;
+}
+
+function loadActivations() {
+  const stored = DemoStore.get(ACTIVATIONS_KEY);
+  return stored && typeof stored === "object" ? stored : {};
+}
+
+function saveActivations(acts) { DemoStore.set(ACTIVATIONS_KEY, acts); }
+
+function provisionedList() {
+  return typeof DEMO_PROVISIONED_ACCOUNTS !== "undefined" ? DEMO_PROVISIONED_ACCOUNTS : [];
+}
+
+function findProvisionByToken(token) {
+  const t = String(token || "");
+  if (!t) return null;
+  return provisionedList().find(a => a.token && a.token === t) || null;
+}
+
+/* Activity monitoring (DrMorgan's orders, 2026-11-04 + 2026-11-05):
+   EVERY activation outcome is reported to the server endpoint
+   (/api/demo-notify) — success ("activated"), attempts against
+   paused / revoked accounts ("paused_attempt" / "revoked_attempt"),
+   and other failures ("action" with detail activation_failed_*).
+   The endpoint emails DrMorgan on success only and forwards every
+   event to the central IEC Office activity log. Fire-and-forget —
+   reporting must never block or break the activation. The seed
+   account can never be activated (it has no token). */
+const DEMO_SEED_EMAIL = "demo@insnapp.example";
+function reportActivity(event, who, detail) {
+  try {
+    const email = normalizeEmail(who && who.email);
+    if (!email) return;
+    if (typeof fetch !== "function") return;
+    fetch("/api/demo-notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, name: (who && who.name) || "", email, detail: detail || "" }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (e) { /* activity reporting never breaks the demo */ }
+}
+function notifyDemoAccess(event, who, detail) { reportActivity(event, who, detail); }
+
+/* The gate every activation passes through, in order:
+   unknown → revoked → paused → already used → ready. */
+function activationState(token) {
+  const prov = findProvisionByToken(token);
+  if (!prov) return { state: "unknown" };
+  const s = String(prov.status || "invited").toLowerCase();
+  if (s === "revoked") return { state: "revoked", provision: prov };
+  if (s === "paused") return { state: "paused", provision: prov };
+  const existing = findAccount(prov.email);
+  if (loadActivations()[normalizeEmail(prov.email)] || (existing && !existing.seed) || s === "active") {
+    return { state: "used", provision: prov };
+  }
+  return { state: "ready", provision: prov };
+}
+
+function demoActivate(token, password, confirm) {
+  const gate = activationState(token);
+  const who = gate.provision ? { email: gate.provision.email, name: gate.provision.name || "" } : { email: "" };
+  if (gate.state === "unknown") return { ok: false, reason: "unknown", error: "This activation link is not valid. Check the link in your email, or contact info@iecincglobal.com." };
+  if (gate.state === "revoked") { reportActivity("revoked_attempt", who, "activation"); return { ok: false, reason: "revoked", error: "This activation link has been revoked. Contact info@iecincglobal.com." }; }
+  if (gate.state === "paused") { reportActivity("paused_attempt", who, "activation"); return { ok: false, reason: "paused", error: "Access for this account is currently paused. Contact info@iecincglobal.com." }; }
+  if (gate.state === "used") { reportActivity("action", who, "activation_failed_used"); return { ok: false, reason: "used", error: "This activation link has already been used. Sign in with the password you set." }; }
+  if (String(password || "").length < 8) { reportActivity("action", who, "activation_failed_password"); return { ok: false, reason: "password", error: "Password must be at least 8 characters." }; }
+  if (password !== confirm) { reportActivity("action", who, "activation_failed_password"); return { ok: false, reason: "password", error: "Passwords do not match." }; }
+  const prov = gate.provision;
+  const email = normalizeEmail(prov.email);
+  const accounts = loadAccounts().filter(a => normalizeEmail(a.email) !== email);
+  accounts.push({ name: prov.name || email, email, password: String(password) });
+  saveAccounts(accounts);
+  const acts = loadActivations();
+  acts[email] = { activatedAt: new Date().toISOString(), via: "activation-link" };
+  saveActivations(acts);
+  const session = { name: prov.name || email, email };
+  DemoStore.set(SESSION_KEY, session);
+  notifyDemoAccess("activated", session);
+  return { ok: true, account: { name: session.name, email } };
+}
+
+/* Exposed for the node smoke test; harmless in the browser. */
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { DemoStore, findProvisionByToken, activationState, demoActivate, findAccount, notifyDemoAccess, reportActivity };
+}
+</script>
+
+<script>
+"use strict";
+/* ===== Activation page wiring (browser only) ===== */
+if (typeof document !== "undefined") {
+  const $ = id => document.getElementById(id);
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const gate = activationState(token);
+
+  function showMsg(text, ok) {
+    $("act-msg").innerHTML = text
+      ? '<div class="form-msg ' + (ok ? "ok" : "error") + '" role="alert"></div>'
+      : "";
+    if (text) $("act-msg").firstChild.textContent = text;
+  }
+
+  if (gate.state === "ready") {
+    $("act-ready").hidden = false;
+    $("act-name").textContent = gate.provision.name || "";
+    $("act-email").textContent = gate.provision.email;
+    $("activate-form").addEventListener("submit", e => {
+      e.preventDefault();
+      showMsg("");
+      const r = demoActivate(token, $("ac-password").value, $("ac-confirm").value);
+      if (!r.ok) { showMsg(r.error, false); return; }
+      $("act-ready").hidden = true;
+      $("act-done").hidden = false;
+      showMsg("Your demo account is active — welcome, " + r.account.name + ".", true);
+    });
+  } else {
+    const texts = {
+      unknown: "This activation link is not valid. Check the link in your email, or contact info@iecincglobal.com and we will reissue it.",
+      used: "This activation link has already been used — your account is active. Sign in from the Demo Portal with the password you set.",
+      paused: "Access for this account is currently paused. Your account is preserved — contact info@iecincglobal.com.",
+      revoked: "This activation link has been revoked. Contact info@iecincglobal.com."
+    };
+    $("act-blocked").hidden = false;
+    $("act-blocked-text").textContent = texts[gate.state] || texts.unknown;
+  }
+}
+</script>
+</body>
+</html>

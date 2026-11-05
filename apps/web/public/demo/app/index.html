@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>INSNAPP Demo — Live Leads Walkthrough | INSNAPP</title>
+<meta name="description" content="The INSNAPP demo: the exact resident, prospect, and broker mobile apps and the Management and Control Center web views as live HTML, following one synthetic showing from request to live lead. Synthetic data only.">
+<style>
+  /* INSNAPP design system — from the product (apps/web/app/globals.css):
+     brand navy ink, violet primary, white rounded cards, slate text. */
+  :root {
+    --ink: #0a0a2e; --ink-soft: #3f3f63; --muted: #64748b;
+    --violet: #7b2ff7; --violet-dark: #5f21c9; --violet-light: #9d4edd; --violet-soft: #f1eafd;
+    --amber: #f59e0b; --amber-soft: #fdf0d5; --coral: #fb7185;
+    --mint: #dcf2e3; --peach: #ffe9d2; --powder: #dfeefb; --cream: #fdf3d7; --pink: #fbe4ef;
+    --card: #ffffff; --line: #e2e8f0; --danger: #dc2626; --radius: 18px;
+    --shadow: 0 8px 24px rgba(10, 10, 46, 0.08), 0 2px 6px rgba(10, 10, 46, 0.05);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Avenir Next", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, #f8fafc 0%, #eef2ff 55%, #f5f0ff 100%);
+    min-height: 100vh; min-height: 100dvh; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  a { color: var(--violet-dark); }
+  h1, h2, h3 { color: var(--ink); margin: 0; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: 14px; color: var(--ink); }
+  ::placeholder { color: #a5b2c7; }
+  :focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; }
+
+  /* ---------- product primitives ---------- */
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; border: 1px solid rgba(226, 232, 240, 0.7); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; padding: 11px 18px; font-weight: 700; font-size: 14px; transition: transform .05s ease, opacity .15s; background: #eef2f7; color: var(--ink); }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-violet { background: var(--violet); color: #fff; }
+  .btn-violet:hover { background: var(--violet-dark); }
+  .btn-navy { background: var(--ink); color: #fff; }
+  .btn-ghost { background: #eef2f7; color: var(--ink); }
+  .btn-danger { background: #fde8e8; color: var(--danger); }
+  .btn-amber { background: var(--amber); color: #231a00; }
+  .btn-wide { width: 100%; }
+  .btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 10px; }
+  .input, .select, .textarea { width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fbfcfe; outline: none; }
+  .label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; max-width: 100%; }
+  .pill-green { background: var(--mint); color: #146c43; }
+  .pill-amber { background: var(--amber-soft); color: #92600a; }
+  .pill-blue { background: var(--powder); color: #245a8f; }
+  .pill-pink { background: var(--pink); color: #8f2d5c; }
+  .pill-gray { background: #edf1f6; color: var(--ink-soft); }
+  .pill-violet { background: var(--violet-soft); color: var(--violet-dark); }
+  .chip-icon { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 21px; flex: none; }
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--violet); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .spread { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .divider { height: 1px; background: var(--line); margin: 6px 0; }
+  .notice { border-radius: 12px; padding: 11px 13px; font-size: 13px; line-height: 1.45; }
+  .notice-violet { background: var(--violet-soft); color: #3b1470; }
+  .notice-amber { background: var(--amber-soft); color: #7c5203; }
+  .notice-red { background: #fdecec; color: #8c1d18; }
+  .switch { position: relative; width: 54px; height: 30px; flex: none; display: inline-block; }
+  .switch .track { position: absolute; inset: 0; border-radius: 999px; background: #cbd6e4; }
+  .switch .track:before { content: ""; position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #fff; top: 3px; left: 3px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .switch.on .track { background: var(--violet); }
+  .switch.on .track:before { transform: translateX(24px); }
+
+  /* phone frame (product mobile shell) */
+  .phone { width: 400px; max-width: 94vw; margin: 0 auto; background: #07071f; border-radius: 44px; padding: 12px; box-shadow: 0 30px 60px rgba(7, 7, 31, .35); }
+  .phone-screen { background: linear-gradient(170deg, #fbfbfe, #f1f0fb); border-radius: 36px; overflow: hidden; min-height: 700px; display: flex; flex-direction: column; position: relative; }
+  .phone-notch { width: 110px; height: 22px; background: #07071f; border-radius: 0 0 14px 14px; margin: 0 auto; flex: none; }
+  .phone-body { flex: 1; overflow-y: auto; padding: 14px 14px 8px; }
+  .tabbar { display: flex; border-top: 1px solid var(--line); background: #fff; flex: none; }
+  .tabbar button { flex: 1; background: none; border: none; padding: 10px 2px 14px; font-size: 11px; font-weight: 700; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: default; }
+  .tabbar button.active { color: var(--violet-dark); }
+  .tabbar .tab-ico { font-size: 18px; }
+
+  /* ---------- demo shell ---------- */
+  .demo-top { max-width: 1160px; margin: 0 auto; padding: 18px clamp(1rem, 4vw, 2.5rem) 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .demo-top .spacer { flex: 1; }
+  .walkbar { max-width: 1160px; margin: 14px auto 0; padding: 0 clamp(1rem, 4vw, 2.5rem); }
+  .walk-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(226, 232, 240, 0.7); padding: 14px 18px; }
+  .walk-dots { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .walk-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: #fff; color: var(--ink-soft); font-weight: 800; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .walk-dot.done { background: var(--violet-soft); border-color: var(--violet); color: var(--violet-dark); }
+  .walk-dot.now { background: var(--violet); border-color: var(--violet); color: #fff; }
+  .walk-nav { display: flex; gap: 8px; align-items: center; }
+  .stage { max-width: 1160px; margin: 0 auto; padding: 18px clamp(1rem, 4vw, 2.5rem) 8px; }
+  .stage-caption { max-width: 860px; margin: 0 auto 16px; text-align: center; }
+  .surface-row { display: flex; gap: 26px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .surface-note { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 10px; }
+  .jump-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  .jump-btn { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 13px; color: var(--ink-soft); }
+  .jump-btn:hover { border-color: var(--violet); color: var(--violet-dark); }
+  .demo-footer { max-width: 1160px; margin: 0 auto; padding: 18px clamp(1rem, 4vw, 2.5rem) 34px; color: var(--muted); font-size: 12.5px; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+  /* ---------- combined flow view (all three screens at once) ---------- */
+  .flow-wrap { position: relative; left: 50%; transform: translateX(-50%); width: min(1560px, 97vw); }
+  .flow-bar { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+  .flow-bar-main { flex: 1 1 520px; min-width: min(520px, 100%); }
+  .flow-title { font-weight: 800; font-size: 19px; margin-top: 2px; }
+  .flow-text { color: var(--ink-soft); font-size: 14.5px; margin: 4px 0 0; }
+  .flow-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .flow-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: #fff; color: var(--ink-soft); font-weight: 800; font-size: 11.5px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+  .flow-dot.done { background: var(--violet-soft); border-color: var(--violet); color: var(--violet-dark); }
+  .flow-dot.now { background: var(--violet); border-color: var(--violet); color: #fff; }
+  .flow-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .flow-hint { text-align: center; color: var(--muted); font-size: 12.5px; margin: 10px auto 0; max-width: 900px; }
+  .flow-grid { display: flex; gap: 18px; align-items: flex-start; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .flow-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .flow-col-web { flex: 1 1 520px; min-width: min(520px, 100%); max-width: 780px; }
+  .flow-col-phone { flex: 0 1 400px; min-width: min(400px, 100%); }
+  .flow-grid.has-focus .flow-col.is-mini { flex: 0 1 235px; }
+  .flow-grid.has-focus .flow-col-web.is-focus { max-width: none; }
+  .flow-wrap .board { max-width: none; }
+  .flow-wrap .b-grid2 { grid-template-columns: 1fr; }
+  .flow-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+  .flow-pane-label { background: none; border: none; font: inherit; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); cursor: pointer; padding: 2px 0; text-align: left; }
+  .flow-pane-label:hover { color: var(--violet-dark); }
+  .flow-zoomctl { display: inline-flex; gap: 4px; align-items: center; flex: none; }
+  .flow-zoomctl button { border: 1.5px solid var(--line); background: #fff; border-radius: 8px; min-width: 28px; height: 28px; font-weight: 800; font-size: 13px; color: var(--ink-soft); padding: 0 6px; line-height: 1; }
+  .flow-zoomctl button:hover { border-color: var(--violet); color: var(--violet-dark); }
+  .flow-tag { font-size: 12.5px; color: var(--ink-soft); background: #eef2f7; border-radius: 10px; padding: 7px 10px; line-height: 1.4; }
+  .flow-tag.hit { background: var(--violet-soft); color: #3b1470; font-weight: 600; }
+  .flow-surface { border-radius: 16px; }
+  .flow-surface.hit { outline: 3px solid var(--violet); outline-offset: 3px; animation: flow-pulse 1.4s ease-out 1; }
+  @keyframes flow-pulse { 0% { box-shadow: 0 0 0 0 rgba(123, 47, 247, .45); } 100% { box-shadow: 0 0 0 18px rgba(123, 47, 247, 0); } }
+
+  /* web board (Management desktop / Control Center styling) */
+  .board { max-width: 1080px; margin: 0 auto; background: rgba(255,255,255,.6); border: 1px solid #dbe3ee; border-radius: 16px; padding: 22px 20px 26px; }
+  .b-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .b-tab { border: 1px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); cursor: default; }
+  .b-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .b-section { border: 1px solid #dbe3ee; border-radius: 12px; padding: 16px; background: #fff; }
+  .b-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .b-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .b-grid2, .b-grid3 { grid-template-columns: 1fr; } }
+  .b-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #f6f8fb; border-radius: 8px; padding: 8px 10px; }
+  .b-chip { border-radius: 999px; padding: 2px 10px; font-size: 12.5px; font-weight: 700; }
+  .b-btn { padding: 9px 16px; font-size: 14px; font-weight: 700; background: var(--violet); color: #fff; border: 0; border-radius: 8px; cursor: default; }
+  .b-btn-sm { padding: 4px 10px; border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; font-size: 12.5px; cursor: default; }
+  .b-btn-sm.on { font-weight: 800; background: var(--violet-soft); }
+  .b-mini { font-size: 12.5px; padding: 3px 9px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: default; }
+  .stat-num { font-size: 26px; font-weight: 800; color: var(--ink); }
+  table.b-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.b-table th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.b-table td { padding: 7px 8px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+
+  .event-strip { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 0 auto 16px; max-width: 900px; }
+  .event-chip { background: var(--ink); color: #fff; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  .event-chip.live { background: var(--danger); }
+
+  /* activity timeline */
+  .timeline { display: flex; flex-direction: column; }
+  .tl-row { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid #eef2f7; align-items: baseline; }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-time { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--ink-soft); font-size: 13px; flex: none; width: 74px; }
+  .lock-wrap { max-width: 520px; margin: 12vh auto 0; padding: 0 1rem; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOCK SCREEN (signed-out bounce, as the product demo does) ============ -->
+<div id="lock-screen" hidden>
+  <div class="lock-wrap">
+    <div class="card" style="text-align:center;padding:32px 26px;">
+      <div style="display:flex;justify-content:center;" id="lock-logo"></div>
+      <h2 style="margin-top:14px;">Sign in to the INSNAPP demo</h2>
+      <p class="muted">The demo opens only through the Demo Portal sign-in — the same door as the product walkthrough.</p>
+      <p style="margin-top:16px;"><a class="btn btn-violet" href="/demo" rel="nofollow">Go to the Demo Portal &rarr;</a></p>
+      <p class="small muted">Synthetic data only · Developed by IEC, Inc.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DEMO SHELL ============ -->
+<div id="demo-shell" hidden>
+  <header class="demo-top">
+    <span id="top-logo"></span>
+    <span class="pill pill-amber">Demo build · synthetic data only</span>
+    <span class="spacer"></span>
+    <span class="small muted" id="top-user"></span>
+    <button class="btn btn-ghost btn-sm" type="button" id="sign-out-btn">Sign out</button>
+  </header>
+
+  <div class="walkbar">
+    <div class="walk-card">
+      <div class="spread" style="flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="eyebrow" style="margin:0;">Guided walkthrough</div>
+          <div style="font-weight:800;font-size:17px;" id="walk-title"></div>
+        </div>
+        <div class="walk-nav">
+          <button class="btn btn-ghost btn-sm" type="button" id="walk-back">&larr; Back</button>
+          <button class="btn btn-violet btn-sm" type="button" id="walk-next">Next &rarr;</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="walk-auto" aria-pressed="false">&#9654; Auto-play</button>
+        </div>
+      </div>
+      <div class="walk-dots" id="walk-dots" style="margin-top:12px;"></div>
+      <div class="jump-row" id="jump-row"></div>
+      <div class="jump-row" style="margin-top:10px;align-items:center;">
+        <span class="small muted" style="font-weight:700;">Screen size</span>
+        <button class="jump-btn" type="button" id="stage-zoom-out" aria-label="Zoom the demo out">−</button>
+        <span class="small" id="stage-zoom-pct" style="font-weight:800;min-width:44px;text-align:center;">100%</span>
+        <button class="jump-btn" type="button" id="stage-zoom-in" aria-label="Zoom the demo in">+</button>
+        <button class="jump-btn" type="button" id="stage-zoom-reset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="stage">
+    <p class="stage-caption lede" id="stage-caption" style="color:var(--ink-soft);font-size:15.5px;"></p>
+    <div id="stage-body"></div>
+  </main>
+
+  <footer class="demo-footer">
+    <span>INSNAPP — a product of IEC, Inc. (International Empire Consultants, Inc.) · Developed by IEC, Inc.</span>
+    <span><span class="pill" style="background:var(--cream);color:#92600a;">SYNTHETIC DEMO DATA</span> Case SYNTH-LEAD-001 · no real people, tenants, or properties</span>
+  </footer>
+</div>
+
+<script src="/demo/provisioning.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   INSNAPP Demo — the exact INSNAPP surfaces as live HTML
+   (self-contained). Reproduces, from the product source (inssnap-del):
+   - the resident (tenant) app (apps/web/app/m/resident + Expo
+     ResidentHome) — Your units, Available NOW, Incoming requests,
+     Live showings;
+   - the prospect app (app/m/prospect) — Ready packet card, Available
+     units, My requests, Request a showing;
+   - the broker app (app/m/broker) — Subscription tier card, Broker
+     license card, Assignment queue;
+   - Management (components/ManagementDesktop) — Live Monitor, Leads,
+     Screening, Broker Vetting tabs with the real labels;
+   - the Control Center (app/control) — INSSNAPP Control Center, Live
+     map summary, orgs, security events, audit log.
+   Standing positioning carried exactly: live leads, not cold leads;
+   broker lead assignment hard-gated on a verified license; the
+   prospect Ready packet is pre-assembled, never pre-approved; tenant
+   screening is vetted by management.
+   All data is the bundled synthetic case below. No backend, no
+   database, no network calls except activity reporting to
+   /api/demo-notify. Session-gated by the Demo Portal.
+   ===================================================================== */
+
+/* ---- Storage: localStorage in the browser, in-memory under test ---- */
+const DemoStore = (() => {
+  let mem = {};
+  const hasLS = typeof localStorage !== "undefined";
+  return {
+    get(k) {
+      if (hasLS) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+      return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+    },
+    set(k, v) {
+      if (hasLS) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
+      else { mem[k] = v; }
+    },
+    remove(k) {
+      if (hasLS) { try { localStorage.removeItem(k); } catch (e) { /* noop */ } }
+      else { delete mem[k]; }
+    },
+    _reset() { mem = {}; }
+  };
+})();
+
+const SESSION_KEY = "insnapp_demo_session";
+const ACTIVATIONS_KEY = "insnapp_demo_activations";
+
+function normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
+
+function demoSession() { return DemoStore.get(SESSION_KEY); }
+function demoSignOut() { DemoStore.remove(SESSION_KEY); }
+
+function provisionedList() {
+  return typeof DEMO_PROVISIONED_ACCOUNTS !== "undefined" ? DEMO_PROVISIONED_ACCOUNTS : [];
+}
+function findProvisioned(email) {
+  const e = normalizeEmail(email);
+  return provisionedList().find(a => normalizeEmail(a.email) === e) || null;
+}
+
+/* Why a session is blocked: a status flip (paused/revoked) ends an
+   existing session, exactly as at the portal — control is
+   administrative, in provisioning.js. */
+function sessionBlockReason(session) {
+  if (!session || !session.email) return "none";
+  const p = findProvisioned(session.email);
+  if (!p) return "none";
+  const s = String(p.status || "invited").toLowerCase();
+  if (s === "paused") return "paused";
+  if (s === "revoked") return "revoked";
+  return null;
+}
+function sessionAllowed(session) { return sessionBlockReason(session) === null; }
+
+/* Activity monitoring (DrMorgan's order, 2026-11-05): the walkthrough
+   reports step views and key actions to /api/demo-notify, which
+   forwards them to the central IEC Office activity log (and never
+   emails for these). Fire-and-forget — reporting never breaks the
+   demo. Seed traffic is reported too; the server flags it seed:true. */
+function reportActivity(event, detail) {
+  try {
+    const s = demoSession();
+    if (!s || !s.email) return;
+    if (typeof fetch !== "function") return;
+    fetch("/api/demo-notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, name: s.name || "", email: s.email, detail: detail || "" }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (e) { /* activity reporting never breaks the demo */ }
+}
+
+/* ================= THE SYNTHETIC CASE — SYNTH-LEAD-001 =================
+   One showing across all five surfaces. Every name is invented for
+   this demo; no production data, no real tenant, no real property. */
+const CASE = {
+  id: "SYNTH-LEAD-001",
+  org: "Harborview Management Group",
+  manager: "Riley Thompson",
+  property: "Harborview Residences",
+  unit: "4B",
+  address: "128 Harborview Ave, Boston, MA",
+  rent: 2450,
+  beds: "2 bed · 1 bath",
+  resident: "Maya Chen",
+  prospect: "Jordan Ellis",
+  prospectTier: "Ready",
+  moveIn: "Nov 15, 2026",
+  brokerVerified: { name: "Sam Whitaker", license: "9071234", state: "MA", registry: "Massachusetts Division of Professional Licensure", tier: "Pro" },
+  brokerPending: { name: "Priya Nair", license: "1188345", state: "MA", submitted: "Nov 4, 2026" },
+  showingWhen: "Today · 11:00 AM",
+  outcome: "Accept",
+  /* The Ready packet (prospect profile): screening done once, the
+     documents recorded, each credential with its source + state.
+     Pre-assembled — never pre-approved. */
+  packet: [
+    { label: "Screening (Checkr)", source: "Checkr report", state: "Completed — vetted by management" },
+    { label: "Government ID", source: "Document on file", state: "Recorded" },
+    { label: "Proof of income", source: "Document on file", state: "Recorded" },
+    { label: "Rental history", source: "Document on file", state: "Recorded" }
+  ],
+  /* Case events (the audit trail the product keeps per showing). */
+  events: [
+    { at: "9:02 AM", text: "Prospect Jordan Ellis (Ready) requested a showing of Unit 4B — SYNTH-LEAD-001" },
+    { at: "9:05 AM", text: "Resident Maya Chen accepted the request — showing CONFIRMED for 11:00 AM" },
+    { at: "9:06 AM", text: "Management notified — Live Monitor, Harborview Management Group" },
+    { at: "9:12 AM", text: "Lead assignment BLOCKED for Priya Nair — broker license not verified (hard gate)" },
+    { at: "9:13 AM", text: "Showing assigned to Sam Whitaker — license verified (MA)" },
+    { at: "9:15 AM", text: "Broker accepted the assignment" },
+    { at: "11:00 AM", text: "Showing started — resident present, broker attending" },
+    { at: "11:24 AM", text: "Showing completed" },
+    { at: "11:31 AM", text: "Prospect outcome recorded — Accept" },
+    { at: "11:32 AM", text: "Lead created from the showing outcome — live lead, disposition: management" },
+    { at: "11:40 AM", text: "Lead pushed to Sam Whitaker for follow-up (verified license)" },
+    { at: "11:41 AM", text: "Ready packet shared with management — screening vetted by management" }
+  ],
+  orgs: [
+    { name: "Harborview Management Group", units: 148, residents: 121, showingsToday: 3 },
+    { name: "Beacon Hill Properties", units: 86, residents: 74, showingsToday: 1 },
+    { name: "South End Living LLC", units: 57, residents: 49, showingsToday: 0 }
+  ]
+};
+
+/* ================= shared bits ================= */
+function logoHTML(size) {
+  return '<span style="display:inline-flex;align-items:center;gap:8px;"><img src="/brand/inssnapp-logo.png" width="' + size + '" height="' + size + '" alt="" style="display:block;"><span style="line-height:1;"><span style="font-weight:800;font-size:' + Math.round(size * 0.62) + 'px;color:#0a0a2e;">INSSNAPP</span></span></span>';
+}
+function synthPill() {
+  return '<span class="pill" style="background:var(--cream);color:#92600a;">SYNTHETIC DEMO DATA</span>';
+}
+function statusPill(kind, label) {
+  const map = { ok: "pill-green", warn: "pill-amber", info: "pill-blue", violet: "pill-violet", gray: "pill-gray", pink: "pill-pink" };
+  return '<span class="pill ' + (map[kind] || "pill-gray") + '">' + label + "</span>";
+}
+function phoneHTML(label, bodyHTML, tabsHTML) {
+  return '<div><div class="surface-note">' + label + '</div><div class="phone"><div class="phone-screen"><div class="phone-notch"></div><div class="phone-body">' +
+    bodyHTML + "</div>" + (tabsHTML || "") + "</div></div></div>";
+}
+function tabbarHTML(tabs, active) {
+  return '<div class="tabbar">' + tabs.map(function (tb) {
+    return '<button type="button" class="' + (tb[0] === active ? "active" : "") + '"><span class="tab-ico">' + tb[2] + "</span>" + tb[1] + "</button>";
+  }).join("") + "</div>";
+}
+const RESIDENT_TABS = [["home", "Home", "🏠"], ["units", "Units", "🔑"], ["showings", "Showings", "📅"], ["profile", "Profile", "👤"]];
+const PROSPECT_TABS = [["home", "Home", "🏠"], ["units", "Units", "🔑"], ["requests", "Requests", "📅"], ["profile", "Profile", "👤"]];
+const BROKER_TABS = [["home", "Home", "🏠"], ["queue", "Queue", "📋"], ["leads", "Leads", "⚡"], ["profile", "Profile", "👤"]];
+
+function mgmtTabs(active) {
+  const tabs = ["Live Monitor", "Map", "Properties", "Units", "Residents", "Invites", "Leads", "Screening", "Broker Vetting", "Reports", "Settings"];
+  return '<div class="b-tabs">' + tabs.map(function (t) {
+    return '<span class="b-tab' + (t === active ? " on" : "") + '">' + t + "</span>";
+  }).join("") + "</div>";
+}
+function boardHead(title, sub) {
+  return '<div class="spread" style="margin-bottom:12px;"><div><h2 style="font-size:20px;">' + title + '</h2><p class="small muted" style="margin:2px 0 0;">' + sub + '</p></div>' + synthPill() + "</div>";
+}
+
+/* ================= RESIDENT (TENANT) APP =================
+   States: "incoming" (request waiting) · "confirmed" · "live" · "done" */
+function residentHTML(state, bare) {
+  const unitCard =
+    '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + " · " + CASE.property + '</h3>' + statusPill("violet", "Your unit") + "</div>" +
+    '<p class="small muted" style="margin:6px 0 10px;">' + CASE.beds + " · $" + CASE.rent.toLocaleString() + "/mo · " + CASE.address + "</p>" +
+    '<div class="spread"><span style="font-weight:700;font-size:14px;">Available NOW</span><span class="switch on"><span class="track"></span></span></div>' +
+    '<p class="small muted" style="margin:6px 0 0;">Prospects can request showings of this unit right now.</p></div>';
+
+  let requestCard;
+  if (state === "incoming") {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Showing request</h3>' + statusPill("warn", "New") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> · " + statusPill("violet", "Ready prospect") + "</p>" +
+      '<p class="small muted" style="margin:0 0 10px;">Requested: ' + CASE.showingWhen + ". Their Ready packet is on file — screening done once, documents recorded.</p>" +
+      '<div class="row"><button class="btn btn-violet btn-sm" type="button">Accept request</button><button class="btn btn-ghost btn-sm" type="button">Decline</button></div></div>';
+  } else {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Showing request</h3>' + statusPill("ok", "Accepted") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> · " + CASE.showingWhen + "</p>" +
+      '<p class="small muted" style="margin:0;">You accepted — the showing is confirmed and management has assigned a verified broker.</p></div>';
+  }
+
+  let liveCard;
+  if (state === "live") {
+    liveCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Live showing</h3>' + statusPill("pink", "● In progress") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> with broker <strong>" + CASE.brokerVerified.name + "</strong></p>" +
+      '<p class="small muted" style="margin:0;">Started 11:00 AM · Unit ' + CASE.unit + "</p></div>";
+  } else if (state === "done") {
+    liveCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Live showing</h3>' + statusPill("ok", "Completed") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> · outcome recorded: <strong>" + CASE.outcome + "</strong></p>" +
+      '<p class="small muted" style="margin:0;">Completed 11:24 AM · the showing outcome is now a live lead with management.</p></div>';
+  } else {
+    liveCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Live showing</h3>' + statusPill("info", "Confirmed · " + CASE.showingWhen) + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> · broker <strong>" + CASE.brokerVerified.name + "</strong> attending</p>" +
+      '<p class="small muted" style="margin:0;">Be home a few minutes early — the broker checks in on arrival.</p></div>';
+  }
+
+  const body =
+    '<div class="stack" style="gap:14px;"><div class="spread"><h2 style="font-size:22px;">Resident</h2>' + statusPill("gray", CASE.resident) + "</div>" +
+    "<div>" + synthPill() + "</div>" +
+    '<p class="eyebrow" style="margin:0;">Your units</p>' + unitCard +
+    '<p class="eyebrow" style="margin:0;">Incoming requests</p>' + requestCard +
+    '<p class="eyebrow" style="margin:0;">Live showings</p>' + liveCard +
+    "</div>";
+  if (bare) return phoneHTML("", body, tabbarHTML(RESIDENT_TABS, "home")).replace('<div class="surface-note"></div>', "");
+  return phoneHTML("Resident (tenant) app — phone", body, tabbarHTML(RESIDENT_TABS, "home"));
+}
+
+/* ================= PROSPECT APP =================
+   States: "browse" · "requested" · "confirmed" · "assigned" · "live" · "done" */
+function prospectHTML(state, bare) {
+  const readyCard =
+    '<div class="card"><div class="spread"><h3 style="font-size:15px;">Ready packet</h3>' + statusPill("ok", "Your application is Ready") + "</div>" +
+    '<p class="small muted" style="margin:6px 0 8px;">Ready is speed, not a shortcut past review: screening done once, documents and financials recorded — your packet is <strong>pre-assembled, never pre-approved</strong>.</p>' +
+    CASE.packet.map(function (d) {
+      return '<div class="spread" style="padding:4px 0;"><span style="font-size:13.5px;">✓ ' + d.label + '</span><span class="small muted">' + d.state + "</span></div>";
+    }).join("") +
+    '<p class="small muted" style="margin:8px 0 0;">Move-in: ' + CASE.moveIn + " · attached to your requests by reference.</p></div>";
+
+  const unitRow =
+    '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + " · " + CASE.property + "</h3>" + statusPill("ok", "Available NOW") + "</div>" +
+    '<p class="small muted" style="margin:6px 0 10px;">' + CASE.beds + " · $" + CASE.rent.toLocaleString() + "/mo · " + CASE.address + "</p>" +
+    (state === "browse"
+      ? '<button class="btn btn-violet btn-sm" type="button">Request a showing</button>'
+      : statusPill("violet", "Showing requested")) + "</div>";
+
+  let requestCard;
+  if (state === "browse") {
+    requestCard = '<div class="card"><p class="small muted" style="margin:0;">No requests yet. Request a showing and the resident answers directly — no waiting on an office.</p></div>';
+  } else if (state === "requested") {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + "</h3>" + statusPill("warn", "Requested · " + CASE.showingWhen) + "</div>" +
+      '<p class="small muted" style="margin:6px 0 0;">Sent to the resident with your Ready packet attached. Waiting for the resident to accept.</p></div>';
+  } else if (state === "confirmed" || state === "assigned") {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + "</h3>" + statusPill("ok", "Confirmed · " + CASE.showingWhen) + "</div>" +
+      (state === "assigned"
+        ? '<p class="small muted" style="margin:6px 0 0;">Your broker: <strong>' + CASE.brokerVerified.name + "</strong> (license verified, MA) — management assigned them to your showing.</p>"
+        : '<p class="small muted" style="margin:6px 0 0;">The resident accepted. Management is assigning a license-verified broker.</p>') + "</div>";
+  } else if (state === "live") {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + "</h3>" + statusPill("pink", "● Showing in progress") + "</div>" +
+      '<p class="small muted" style="margin:6px 0 0;">You are at the unit with broker <strong>' + CASE.brokerVerified.name + "</strong>. Take your time — your outcome is recorded when you are done.</p></div>";
+  } else {
+    requestCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Unit ' + CASE.unit + "</h3>" + statusPill("ok", "Outcome: " + CASE.outcome) + "</div>" +
+      '<p class="small muted" style="margin:6px 0 0;">You recorded <strong>' + CASE.outcome + "</strong> — management has your Ready packet and the lead is moving. That is the Ready advantage: no scramble, everything already on file.</p></div>";
+  }
+
+  const body =
+    '<div class="stack" style="gap:14px;"><div class="spread"><h2 style="font-size:22px;">Prospect</h2>' + statusPill("gray", CASE.prospect) + "</div>" +
+    "<div>" + synthPill() + "</div>" + readyCard +
+    '<p class="eyebrow" style="margin:0;">Available units</p>' + unitRow +
+    '<p class="eyebrow" style="margin:0;">My requests</p>' + requestCard +
+    "</div>";
+  if (bare) return phoneHTML("", body, tabbarHTML(PROSPECT_TABS, "requests")).replace('<div class="surface-note"></div>', "");
+  return phoneHTML("Prospect app — phone", body, tabbarHTML(PROSPECT_TABS, "requests"));
+}
+
+/* ================= BROKER APP =================
+   States: "assigned" (queue, not yet accepted) · "accepted" · "done" */
+function brokerHTML(state, bare) {
+  const tierCard =
+    '<div class="card"><div class="spread"><h3 style="font-size:15px;">Subscription · ' + CASE.brokerVerified.tier + "</h3>" + statusPill("violet", "Active") + "</div>" +
+    '<p class="small muted" style="margin:6px 0 0;">For brokers working a high-volume lead flow — unlimited leads.</p></div>';
+  const licenseCard =
+    '<div class="card"><div class="spread"><h3 style="font-size:15px;">Broker license</h3>' + statusPill("ok", "verified") + "</div>" +
+    '<p class="small muted" style="margin:6px 0 0;">License ' + CASE.brokerVerified.license + " (" + CASE.brokerVerified.state + ") verified with the " + CASE.brokerVerified.registry + ". You can receive lead assignments.</p></div>";
+  let queueCard;
+  if (state === "assigned") {
+    queueCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Showing assignment</h3>' + statusPill("warn", "New") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>Unit " + CASE.unit + " · " + CASE.property + "</strong></p>" +
+      '<p class="small muted" style="margin:0 0 10px;">' + CASE.showingWhen + " · prospect " + CASE.prospect + " (Ready) · resident present. Assigned by " + CASE.org + ".</p>" +
+      '<div class="row"><button class="btn btn-violet btn-sm" type="button">Accept assignment</button><button class="btn btn-ghost btn-sm" type="button">Decline</button></div></div>';
+  } else if (state === "accepted") {
+    queueCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Showing assignment</h3>' + statusPill("ok", "Accepted") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>Unit " + CASE.unit + " · " + CASE.property + "</strong></p>" +
+      '<p class="small muted" style="margin:0;">' + CASE.showingWhen + " · you are attending with the resident present.</p></div>";
+  } else {
+    queueCard =
+      '<div class="card"><div class="spread"><h3 style="font-size:15px;">Lead follow-up</h3>' + statusPill("violet", "Live lead") + "</div>" +
+      "<p style=\"font-size:14px;margin:8px 0;\"><strong>" + CASE.prospect + "</strong> · Unit " + CASE.unit + " · outcome: <strong>" + CASE.outcome + "</strong></p>" +
+      '<p class="small muted" style="margin:0 0 10px;">A live lead from a completed showing — not a cold list. Pushed to you by management at 11:40 AM.</p>' +
+      '<button class="btn btn-violet btn-sm" type="button">Rate showing</button></div>';
+  }
+  const body =
+    '<div class="stack" style="gap:14px;"><div class="spread"><h2 style="font-size:22px;">Broker</h2>' + statusPill("gray", CASE.brokerVerified.name) + "</div>" +
+    "<div>" + synthPill() + "</div>" + tierCard + licenseCard +
+    '<p class="eyebrow" style="margin:0;">Assignment queue</p>' + queueCard +
+    "</div>";
+  if (bare) return phoneHTML("", body, tabbarHTML(BROKER_TABS, "queue")).replace('<div class="surface-note"></div>', "");
+  return phoneHTML("Broker app — phone", body, tabbarHTML(BROKER_TABS, "queue"));
+}
+
+/* ================= MANAGEMENT (WEB) ================= */
+function showingRow(state) {
+  const chip = {
+    requested: statusPill("warn", "Requested"),
+    confirmed: statusPill("info", "Confirmed"),
+    assigned: statusPill("violet", "Broker assigned"),
+    live: statusPill("pink", "● Live"),
+    done: statusPill("ok", "Completed · outcome " + CASE.outcome)
+  }[state];
+  return '<div class="b-row"><strong>Unit ' + CASE.unit + "</strong><span>" + CASE.property + "</span><span class=\"muted\">" + CASE.prospect + " → " + CASE.resident + "</span><span class=\"muted\">" + CASE.showingWhen + "</span>" + chip + "</div>";
+}
+
+/* focus: "monitor" · "vetting" · "leads" · "screening"; state drives the showing row */
+function mgmtHTML(focus, state) {
+  let content = "";
+  if (focus === "monitor") {
+    content =
+      '<div class="b-grid3" style="margin-bottom:16px;">' +
+      '<div class="b-section"><div class="stat-num">3</div><p class="small muted" style="margin:2px 0 0;">Showings today</p></div>' +
+      '<div class="b-section"><div class="stat-num">1</div><p class="small muted" style="margin:2px 0 0;">Live leads</p></div>' +
+      '<div class="b-section"><div class="stat-num">1</div><p class="small muted" style="margin:2px 0 0;">Broker licenses in vetting</p></div></div>' +
+      '<section class="b-section"><h3 style="margin:0 0 10px;font-size:16px;">📋 Showings monitor</h3><div class="stack" style="gap:8px;">' +
+      showingRow(state) +
+      '<div class="b-row"><strong>Unit 2A</strong><span>' + CASE.property + '</span><span class="muted">Prospect (base tier) → Resident</span><span class="muted">Today · 2:30 PM</span>' + statusPill("info", "Confirmed") + "</div>" +
+      '<div class="b-row"><strong>Unit 7C</strong><span>' + CASE.property + '</span><span class="muted">Prospect (Ready) → Resident</span><span class="muted">Tomorrow · 10:00 AM</span>' + statusPill("warn", "Requested") + "</div>" +
+      "</div></section>";
+  } else if (focus === "vetting") {
+    content =
+      '<section class="b-section"><h3 style="margin:0 0 6px;font-size:16px;">🛡️ Broker Vetting — license registry-review queue</h3>' +
+      '<p class="small muted" style="margin:0 0 12px;">Licenses are reviewed against the state registry (MA DPL). <strong>Lead assignment is hard-gated</strong>: no verified license, no leads — the assignment action itself refuses.</p>' +
+      '<div class="stack" style="gap:8px;">' +
+      '<div class="b-row"><strong>' + CASE.brokerVerified.name + "</strong><span>License " + CASE.brokerVerified.license + " (" + CASE.brokerVerified.state + ")</span>" + statusPill("ok", "verified") + '<span class="small muted">Verified with the ' + CASE.brokerVerified.registry + '</span><button class="b-btn-sm on" type="button">Assign lead</button></div>' +
+      '<div class="b-row"><strong>' + CASE.brokerPending.name + "</strong><span>License " + CASE.brokerPending.license + " (" + CASE.brokerPending.state + ")</span>" + statusPill("warn", "pending") + '<span class="small muted">Submitted ' + CASE.brokerPending.submitted + ' — awaiting registry review</span><button class="b-btn-sm" type="button" disabled title="Hard gate">Assign lead 🔒</button></div>' +
+      "</div>" +
+      '<div class="notice notice-red" style="margin-top:12px;"><strong>Hard gate, 9:12 AM:</strong> assignment of the Unit ' + CASE.unit + " lead to " + CASE.brokerPending.name + ' was <strong>blocked</strong> — broker license not verified. Lead assignments unlock once the license verifies; there is no override.</div>' +
+      "</section>";
+  } else if (focus === "leads") {
+    content =
+      '<section class="b-section"><h3 style="margin:0 0 6px;font-size:16px;">⚡ Leads — live leads, not cold leads</h3>' +
+      '<p class="small muted" style="margin:0 0 12px;">Every lead here comes from a completed showing with a recorded outcome — a person who walked the unit and answered. Nothing is scraped, bought, or cold.</p>' +
+      '<table class="b-table"><thead><tr><th>Lead</th><th>Unit</th><th>Prospect</th><th>Outcome</th><th>Disposition</th><th>Broker</th><th>Completed</th></tr></thead><tbody>' +
+      "<tr><td><strong>" + CASE.id + "</strong></td><td>Unit " + CASE.unit + " · " + CASE.property + "</td><td>" + CASE.prospect + " (Ready)</td><td>" + statusPill("ok", CASE.outcome) + "</td><td>Management</td><td>" + CASE.brokerVerified.name + " ✓ verified</td><td>11:24 AM</td></tr>" +
+      "<tr><td><strong>SYNTH-LEAD-002</strong></td><td>Unit 2A · " + CASE.property + "</td><td>Prospect (base tier)</td><td>" + statusPill("warn", "Watching") + "</td><td>Management</td><td>—</td><td>Yesterday</td></tr>" +
+      "</tbody></table>" +
+      '<div class="notice notice-violet" style="margin-top:12px;">11:40 AM — the ' + CASE.id + " lead was pushed to <strong>" + CASE.brokerVerified.name + "</strong> for follow-up. Push-to-broker is assignment of the lead record; only license-verified brokers appear in the picker.</div>" +
+      "</section>";
+  } else if (focus === "screening") {
+    content =
+      '<section class="b-section"><h3 style="margin:0 0 6px;font-size:16px;">🔎 Screening — ' + CASE.prospect + " · Ready packet</h3>" +
+      '<p class="small muted" style="margin:0 0 12px;">The Ready packet, as management sees it: each credential with its source and verification state. Documents are case records, not evidence — and <strong>Ready means the packet is pre-assembled, never pre-approved</strong>. Tenant screening is vetted by management.</p>' +
+      '<table class="b-table"><thead><tr><th>Credential</th><th>Source</th><th>State</th></tr></thead><tbody>' +
+      CASE.packet.map(function (d) {
+        return "<tr><td><strong>" + d.label + "</strong></td><td>" + d.source + "</td><td>" + d.state + "</td></tr>";
+      }).join("") +
+      "</tbody></table>" +
+      '<p class="small muted" style="margin:10px 0 0;">Move-in: ' + CASE.moveIn + " · Unit " + CASE.unit + " · packet shared with management 11:41 AM.</p>" +
+      "</section>";
+  }
+  return '<div class="board">' + boardHead("Management — " + CASE.org, "Signed in as " + CASE.manager + " · management") + mgmtTabs({ monitor: "Live Monitor", vetting: "Broker Vetting", leads: "Leads", screening: "Screening" }[focus]) + content + "</div>";
+}
+
+/* ================= CONTROL CENTER (WEB ADMIN) ================= */
+function activityHTML() {
+  const rows = CASE.events.map(function (e) {
+    return '<div class="tl-row"><span class="tl-time">' + e.at + '</span><span style="font-size:14px;">' + e.text + "</span></div>";
+  }).join("");
+  return '<section class="b-section"><h3 style="margin:0 0 10px;font-size:16px;">🧾 Audit log — ' + CASE.id + '</h3><div class="timeline">' + rows + "</div></section>";
+}
+
+function controlHTML(withLog) {
+  const orgs = CASE.orgs.map(function (o) {
+    return '<div class="b-row"><strong>' + o.name + '</strong><span class="muted">' + o.units + " units · " + o.residents + " residents · " + o.showingsToday + " showings today</span></div>";
+  }).join("");
+  return '<div class="board">' + boardHead("INSSNAPP Control Center", "Platform administration — IEC, Inc. · all organizations") +
+    '<div class="b-grid2">' +
+    '<section class="b-section"><h3 style="margin:0 0 10px;font-size:16px;">🗺️ Live map</h3><p class="small muted" style="margin:0;">3 organizations live · showings in progress: 1 · Units marked Available NOW: 42. The map plots stored unit locations only.</p></section>' +
+    '<section class="b-section"><h3 style="margin:0 0 10px;font-size:16px;">🏢 Organizations</h3><div class="stack" style="gap:8px;">' + orgs + "</div></section>" +
+    "</div>" +
+    '<section class="b-section" style="margin-top:16px;"><h3 style="margin:0 0 10px;font-size:16px;">🔐 Security events</h3><div class="stack" style="gap:8px;">' +
+    '<div class="b-row"><span>9:12 AM</span><span>Lead assignment blocked by the license hard gate (Unit ' + CASE.unit + " → " + CASE.brokerPending.name + ")</span>" + statusPill("warn", "Gate held") + "</div>" +
+    '<div class="b-row"><span>9:02 AM</span><span>Ready packet attached to a showing request by reference (' + CASE.prospect + ")</span>" + statusPill("gray", "Logged") + "</div>" +
+    "</div></section>" +
+    (withLog ? '<div style="margin-top:16px;">' + activityHTML() + "</div>" : "") +
+    "</div>";
+}
+
+/* ================= COMBINED FLOW (step 1) =================
+   One timeline across Management (web) + Resident + Prospect phones.
+   Each beat sets all three surfaces at the same moment of
+   SYNTH-LEAD-001's lifecycle. */
+const FLOW_PANE_LABELS = { m: "Web — Management", r: "Mobile — Resident (tenant) app", p: "Mobile — Prospect app" };
+const FLOW_ZOOM_STEPS = [0.6, 0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2];
+function flowDefaultView() {
+  return { zoom: { m: 1, r: 1, p: 1 }, focus: null, playing: false };
+}
+function flowZoomStep(view, pane, dir) {
+  const cur = view.zoom[pane] || 1;
+  let idx = FLOW_ZOOM_STEPS.indexOf(cur);
+  if (idx < 0) idx = 3;
+  idx = Math.max(0, Math.min(FLOW_ZOOM_STEPS.length - 1, idx + dir));
+  return FLOW_ZOOM_STEPS[idx];
+}
+function flowEffectiveZoom(view, pane) {
+  const base = view.zoom[pane] || 1;
+  if (!view.focus) return base;
+  return base * (view.focus === pane ? 1.3 : 0.55);
+}
+
+const FLOW_BEATS = [
+  {
+    title: "The unit is live",
+    text: "Maya Chen's Unit 4B sits marked Available NOW; Jordan Ellis — a Ready prospect, packet already assembled — is browsing available units.",
+    notes: { m: "Live Monitor: a quiet board, 3 showings today.", r: "Resident: Unit 4B live — Available NOW is on.", p: "Prospect: browsing Available units." },
+    hit: { m: false, r: true, p: true },
+    m: function () { return mgmtHTML("monitor", "confirmed"); },
+    r: function () { return residentHTML("confirmed", true); },
+    p: function () { return prospectHTML("browse", true); }
+  },
+  {
+    title: "The prospect requests the showing",
+    text: "Jordan requests Unit 4B for 11:00 AM. The request reaches the resident with the Ready packet attached by reference — screening done once, documents recorded.",
+    notes: { m: "Live Monitor: the request appears.", r: "Resident: a new incoming request lands.", p: "Prospect: request sent, packet attached." },
+    hit: { m: true, r: true, p: true },
+    m: function () { return mgmtHTML("monitor", "requested"); },
+    r: function () { return residentHTML("incoming", true); },
+    p: function () { return prospectHTML("requested", true); }
+  },
+  {
+    title: "The resident confirms",
+    text: "Maya accepts from her phone. The showing is CONFIRMED on every surface in the same moment — no office in the middle.",
+    notes: { m: "Live Monitor: showing confirmed.", r: "Resident: accepted — showing confirmed.", p: "Prospect: confirmed for 11:00 AM." },
+    hit: { m: true, r: true, p: true },
+    m: function () { return mgmtHTML("monitor", "confirmed"); },
+    r: function () { return residentHTML("confirmed", true); },
+    p: function () { return prospectHTML("confirmed", true); }
+  },
+  {
+    title: "The hard gate holds",
+    text: "Management tries the follow-up assignment with Priya Nair — her license is still in registry review. The assignment refuses: no verified license, no leads. No override exists.",
+    notes: { m: "Broker Vetting: Priya Nair pending — Assign is locked; the 9:12 AM attempt is blocked and logged.", r: "Resident: showing stands confirmed.", p: "Prospect: waiting on a verified broker." },
+    hit: { m: true, r: false, p: false },
+    m: function () { return mgmtHTML("vetting", "confirmed"); },
+    r: function () { return residentHTML("confirmed", true); },
+    p: function () { return prospectHTML("confirmed", true); }
+  },
+  {
+    title: "A verified broker is assigned",
+    text: "Sam Whitaker — license verified against the MA registry — takes the assignment and accepts from the broker app. The prospect sees exactly who is coming.",
+    notes: { m: "Live Monitor: broker assigned — Sam Whitaker ✓.", r: "Resident: broker attending noted.", p: "Prospect: 'Your broker: Sam Whitaker (verified)'." },
+    hit: { m: true, r: true, p: true },
+    m: function () { return mgmtHTML("monitor", "assigned"); },
+    r: function () { return residentHTML("confirmed", true); },
+    p: function () { return prospectHTML("assigned", true); }
+  },
+  {
+    title: "The showing happens",
+    text: "11:00 AM — resident present, broker attending, prospect walking the unit. Every surface shows the same live state.",
+    notes: { m: "Live Monitor: showing in progress.", r: "Resident: live showing in progress.", p: "Prospect: at the unit." },
+    hit: { m: true, r: true, p: true },
+    m: function () { return mgmtHTML("monitor", "live"); },
+    r: function () { return residentHTML("live", true); },
+    p: function () { return prospectHTML("live", true); }
+  },
+  {
+    title: "Outcome recorded — a live lead is born",
+    text: "Jordan records the outcome: Accept. The completed showing becomes a lead in Management — a live lead from a real walk-through, not a cold list row.",
+    notes: { m: "Leads: SYNTH-LEAD-001 — outcome Accept, disposition management.", r: "Resident: showing completed.", p: "Prospect: outcome recorded — Accept." },
+    hit: { m: true, r: true, p: true },
+    m: function () { return mgmtHTML("leads", "done"); },
+    r: function () { return residentHTML("done", true); },
+    p: function () { return prospectHTML("done", true); }
+  },
+  {
+    title: "The lead routes — packet vetted",
+    text: "Management pushes the lead to Sam Whitaker for follow-up and opens Jordan's Ready packet in Screening — every credential with its source, vetted by management. The loop closes.",
+    notes: { m: "Screening: Ready packet — pre-assembled, never pre-approved; screening vetted by management.", r: "Resident: done — the unit's showing is complete.", p: "Prospect: 'management has your Ready packet'." },
+    hit: { m: true, r: false, p: true },
+    m: function () { return mgmtHTML("screening", "done"); },
+    r: function () { return residentHTML("done", true); },
+    p: function () { return prospectHTML("done", true); }
+  }
+];
+
+function flowPaneHeadHTML(pane, view) {
+  const z = Math.round(flowEffectiveZoom(view, pane) * 100);
+  return '<div class="flow-pane-head"><button type="button" class="flow-pane-label" data-flow-focus="' + pane + '" title="Enlarge this screen">' + FLOW_PANE_LABELS[pane] + (view.focus === pane ? " · enlarged" : "") + "</button>" +
+    '<span class="flow-zoomctl"><button type="button" data-flow-zoom="' + pane + ':-1" aria-label="Zoom out">−</button><button type="button" data-flow-zoomreset="' + pane + '" aria-label="Reset zoom">' + z + '%</button><button type="button" data-flow-zoom="' + pane + ':1" aria-label="Zoom in">+</button></span></div>';
+}
+function flowColHTML(pane, beat, view, surfaceHTML) {
+  const focused = view.focus === pane;
+  const mini = view.focus && !focused;
+  const cls = "flow-col " + (pane === "m" ? "flow-col-web" : "flow-col-phone") + (focused ? " is-focus" : "") + (mini ? " is-mini" : "");
+  const z = flowEffectiveZoom(view, pane);
+  return '<div class="' + cls + '">' + flowPaneHeadHTML(pane, view) +
+    '<div class="flow-surface' + (beat.hit[pane] ? " hit" : "") + '" style="zoom:' + z + ';">' + surfaceHTML + "</div>" +
+    '<div class="flow-tag' + (beat.hit[pane] ? " hit" : "") + '">' + beat.notes[pane] + "</div></div>";
+}
+function flowHTML(beatIdx, view) {
+  view = view || flowDefaultView();
+  const beat = FLOW_BEATS[beatIdx];
+  const dots = FLOW_BEATS.map(function (b, bi) {
+    return '<button type="button" class="flow-dot' + (bi < beatIdx ? " done" : bi === beatIdx ? " now" : "") + '" data-flow-beat="' + bi + '" aria-label="Beat ' + (bi + 1) + ": " + b.title + '">' + (bi + 1) + "</button>";
+  }).join("");
+  return '<div class="flow-wrap"><div class="flow-bar"><div class="flow-bar-main">' +
+    '<div class="eyebrow" style="margin:0;">All screens · beat ' + (beatIdx + 1) + " of " + FLOW_BEATS.length + '</div><div class="flow-title">' + beat.title + '</div><p class="flow-text">' + beat.text + '</p><div class="flow-dots">' + dots + "</div></div>" +
+    '<div class="flow-controls"><button class="btn btn-ghost btn-sm" type="button" data-flow-act="prev">← Beat</button>' +
+    '<button class="btn btn-violet btn-sm" type="button" data-flow-act="play">' + (view.playing ? "⏸ Pause" : "▶ Play the flow") + "</button>" +
+    '<button class="btn btn-ghost btn-sm" type="button" data-flow-act="next">Beat →</button>' +
+    (view.focus ? '<button class="btn btn-ghost btn-sm" type="button" data-flow-act="unfocus">Show all three screens</button>' : "") +
+    "</div></div>" +
+    '<div class="flow-grid' + (view.focus ? " has-focus" : "") + '">' +
+    flowColHTML("m", beat, view, beat.m()) +
+    flowColHTML("r", beat, view, beat.r()) +
+    flowColHTML("p", beat, view, beat.p()) +
+    "</div>" +
+    '<p class="flow-hint">One synthetic showing, three screens, one timeline. Zoom any screen (− / % / +) or tap its label to enlarge it — the other two keep playing live beside it.</p></div>';
+}
+
+/* ================= WALKTHROUGH STEPS ================= */
+const STEPS = [
+  {
+    id: "flow",
+    title: "1 · All screens — the live flow",
+    caption: "One showing, three screens, one timeline — the whole product at a glance, and the first thing a signed-in reviewer lands on. The Ready prospect requests, the resident confirms, the hard gate holds, a verified broker works the showing, and the outcome becomes a live lead. It plays on its own — pause it, step it beat by beat, zoom or enlarge any screen. The steps after this one tour each surface on its own.",
+    render: function () { return flowHTML(0); }
+  },
+  {
+    id: "management_monitor",
+    title: "2 · Management — the Live Monitor",
+    caption: "Harborview Management Group runs its showings from the Management desktop: Live Monitor, Map, Properties, Units, Residents, Invites, Leads, Screening, Broker Vetting, Reports, Settings. The board watches every showing state as it changes.",
+    render: function () { return '<div class="surface-note">Management — web</div>' + mgmtHTML("monitor", "assigned"); }
+  },
+  {
+    id: "resident_app",
+    title: "3 · The resident (tenant) app",
+    caption: "The resident-powered half of INSNAPP: Maya Chen lists Unit 4B, flips Available NOW on, and answers showing requests from her phone. When she accepts, the showing is confirmed everywhere at once.",
+    render: function () { return residentHTML("incoming"); }
+  },
+  {
+    id: "prospect_app",
+    title: "4 · The prospect app — Ready",
+    caption: "Jordan Ellis carries the Ready tier: screening done once, documents and financials recorded — the packet is pre-assembled, never pre-approved. A request goes out with the packet attached by reference; the resident sees a Ready prospect, not a stranger.",
+    render: function () { return prospectHTML("browse"); }
+  },
+  {
+    id: "broker_app",
+    title: "5 · The broker app",
+    caption: "Sam Whitaker's broker app: his subscription tier, his license card — verified against the Massachusetts registry — and his assignment queue. Accepting an assignment moves the showing toward confirmation.",
+    render: function () { return brokerHTML("assigned"); }
+  },
+  {
+    id: "broker_vetting",
+    title: "6 · Broker Vetting — the hard gate",
+    caption: "The rule with teeth: lead assignment is hard-gated on a verified license. Priya Nair's license is still in registry review, so the 9:12 AM assignment attempt was blocked and logged — there is no override, no manual exception.",
+    render: function () { return '<div class="surface-note">Management — web · Broker Vetting</div>' + mgmtHTML("vetting", "confirmed"); }
+  },
+  {
+    id: "showing_day",
+    title: "7 · Showing day",
+    caption: "11:00 AM at Unit 4B: the resident is present, the verified broker attends, the prospect walks the unit. Both phones show the same live state while Management watches from the Live Monitor.",
+    render: function () {
+      return '<div class="surface-row">' + residentHTML("live") + prospectHTML("live") + "</div>";
+    }
+  },
+  {
+    id: "leads",
+    title: "8 · Leads — live leads, not cold leads",
+    caption: "The showing completes and Jordan records the outcome: Accept. That outcome is the lead — a person who walked the unit and answered, routed to a license-verified broker for follow-up. INSNAPP sells live leads, never cold lists.",
+    render: function () { return '<div class="surface-note">Management — web · Leads</div>' + mgmtHTML("leads", "done"); }
+  },
+  {
+    id: "screening",
+    title: "9 · Screening — vetted by management",
+    caption: "Management opens the Ready packet in Screening: every credential with its source and verification state. The packet is pre-assembled so the application moves fast — approval stays a management decision, never a default.",
+    render: function () { return '<div class="surface-note">Management — web · Screening</div>' + mgmtHTML("screening", "done"); }
+  },
+  {
+    id: "control_center",
+    title: "10 · Control Center — and the audit log",
+    caption: "Above every organization sits the INSSNAPP Control Center (IEC platform administration): live map, orgs, security events — the hard gate's block is a security event — and the full audit trail the platform keeps for SYNTH-LEAD-001.",
+    render: function () { return '<div class="surface-note">Control Center — web admin</div>' + controlHTML(true); }
+  }
+];
+
+const JUMPS = [
+  ["All screens — live flow", 0], ["Management", 1], ["Resident app", 2], ["Prospect app", 3], ["Broker app", 4], ["Hard gate", 5], ["Leads", 7], ["Control Center", 9]
+];
+
+function renderStep(i) { return STEPS[i].render(); }
+
+/* Exposed for the node smoke test; harmless in the browser. */
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { CASE, STEPS, JUMPS, renderStep, residentHTML, prospectHTML, brokerHTML, mgmtHTML, controlHTML, activityHTML, FLOW_BEATS, FLOW_PANE_LABELS, FLOW_ZOOM_STEPS, flowDefaultView, flowZoomStep, flowEffectiveZoom, flowHTML, sessionAllowed, sessionBlockReason, demoSession, demoSignOut, DemoStore, reportActivity };
+}
+</script>
+
+<script>
+"use strict";
+/* ===== Demo shell wiring (browser only) ===== */
+if (typeof document !== "undefined") {
+  const $ = id => document.getElementById(id);
+  const session = demoSession();
+
+  $("lock-logo").innerHTML = logoHTML(40);
+  $("top-logo").innerHTML = logoHTML(32);
+
+  if (!sessionAllowed(session)) {
+    /* A paused/revoked flip that ended this session is an activity
+       event too (reported with the session's identity before it goes). */
+    const reason = sessionBlockReason(session);
+    if (reason === "paused" || reason === "revoked") {
+      reportActivity(reason === "paused" ? "paused_attempt" : "revoked_attempt", "demo_app");
+    }
+    $("lock-screen").hidden = false;
+  } else {
+    $("demo-shell").hidden = false;
+    $("top-user").textContent = session.name + " · demo access";
+
+    let current = 0;
+    let timer = null;
+
+    const dots = $("walk-dots");
+    STEPS.forEach(function (s, i) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "walk-dot";
+      b.textContent = String(i + 1);
+      b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+      b.addEventListener("click", () => { stopAuto(); go(i); });
+      dots.appendChild(b);
+    });
+
+    const jr = $("jump-row");
+    JUMPS.forEach(function (j) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "jump-btn";
+      b.textContent = j[0];
+      b.addEventListener("click", () => { stopAuto(); reportActivity("action", "jump:" + STEPS[j[1]].id); go(j[1]); });
+      jr.appendChild(b);
+    });
+
+    /* ===== Combined flow player (step 1) ===== */
+    let flowBeat = 0;
+    let flowView = flowDefaultView();
+    let flowTimer = null;
+    let flowStartTimer = null;
+
+    function flowRender() {
+      $("stage-body").innerHTML = flowHTML(flowBeat, flowView);
+    }
+    function flowStop() {
+      if (flowTimer) { clearInterval(flowTimer); flowTimer = null; }
+      if (flowStartTimer) { clearTimeout(flowStartTimer); flowStartTimer = null; }
+      flowView.playing = false;
+    }
+    function flowPlay() {
+      if (flowBeat >= FLOW_BEATS.length - 1) flowBeat = 0;
+      flowView.playing = true;
+      reportActivity("action", "flow_play");
+      flowRender();
+      if (flowTimer) clearInterval(flowTimer);
+      flowTimer = setInterval(() => {
+        if (flowBeat >= FLOW_BEATS.length - 1) { flowStop(); flowRender(); return; }
+        flowBeat++;
+        flowRender();
+      }, 4500);
+    }
+    function flowEnter() {
+      flowBeat = 0;
+      flowView.playing = false;
+      flowRender();
+      flowStartTimer = setTimeout(() => { if (current === 0) flowPlay(); }, 700);
+    }
+
+    $("stage-body").addEventListener("click", e => {
+      const actEl = e.target.closest("[data-flow-act]");
+      const zoomEl = e.target.closest("[data-flow-zoom]");
+      const resetEl = e.target.closest("[data-flow-zoomreset]");
+      const focusEl = e.target.closest("[data-flow-focus]");
+      const beatEl = e.target.closest("[data-flow-beat]");
+      if (zoomEl) {
+        const parts = zoomEl.getAttribute("data-flow-zoom").split(":");
+        flowView.zoom[parts[0]] = flowZoomStep(flowView, parts[0], parseInt(parts[1], 10));
+        flowRender();
+      } else if (resetEl) {
+        flowView.zoom[resetEl.getAttribute("data-flow-zoomreset")] = 1;
+        flowRender();
+      } else if (focusEl) {
+        const pane = focusEl.getAttribute("data-flow-focus");
+        flowView.focus = flowView.focus === pane ? null : pane;
+        flowRender();
+      } else if (beatEl) {
+        flowStop();
+        flowBeat = parseInt(beatEl.getAttribute("data-flow-beat"), 10);
+        reportActivity("step_view", "flow_beat_" + (flowBeat + 1));
+        flowRender();
+      } else if (actEl) {
+        const act = actEl.getAttribute("data-flow-act");
+        if (act === "play") {
+          if (flowView.playing) { flowStop(); reportActivity("action", "flow_pause"); flowRender(); }
+          else flowPlay();
+        } else if (act === "prev") {
+          flowStop(); flowBeat = Math.max(0, flowBeat - 1); reportActivity("step_view", "flow_beat_" + (flowBeat + 1)); flowRender();
+        } else if (act === "next") {
+          flowStop(); flowBeat = Math.min(FLOW_BEATS.length - 1, flowBeat + 1); reportActivity("step_view", "flow_beat_" + (flowBeat + 1)); flowRender();
+        } else if (act === "unfocus") {
+          flowView.focus = null; flowRender();
+        }
+      }
+    });
+
+    /* ===== Demo-wide screen size (zoom for every step) ===== */
+    const STAGE_ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4];
+    let stageZoomIdx = 2;
+    function applyStageZoom() {
+      const z = STAGE_ZOOM_STEPS[stageZoomIdx];
+      $("stage-body").style.zoom = z === 1 ? "" : String(z);
+      $("stage-zoom-pct").textContent = Math.round(z * 100) + "%";
+    }
+    $("stage-zoom-out").addEventListener("click", () => { stageZoomIdx = Math.max(0, stageZoomIdx - 1); applyStageZoom(); });
+    $("stage-zoom-in").addEventListener("click", () => { stageZoomIdx = Math.min(STAGE_ZOOM_STEPS.length - 1, stageZoomIdx + 1); applyStageZoom(); });
+    $("stage-zoom-reset").addEventListener("click", () => { stageZoomIdx = 2; applyStageZoom(); });
+
+    function go(i) {
+      flowStop();
+      current = Math.max(0, Math.min(STEPS.length - 1, i));
+      $("walk-title").textContent = STEPS[current].title;
+      $("stage-caption").textContent = STEPS[current].caption;
+      $("stage-body").innerHTML = renderStep(current);
+      Array.from(dots.children).forEach(function (d, di) {
+        d.className = "walk-dot" + (di < current ? " done" : di === current ? " now" : "");
+      });
+      $("walk-back").disabled = current === 0;
+      $("walk-next").disabled = current === STEPS.length - 1;
+      window.scrollTo({ top: 0 });
+      reportActivity("step_view", STEPS[current].id);
+      if (current === 0) flowEnter();
+    }
+
+    function stopAuto() {
+      if (timer) { clearInterval(timer); timer = null; }
+      $("walk-auto").setAttribute("aria-pressed", "false");
+      $("walk-auto").innerHTML = "&#9654; Auto-play";
+    }
+
+    $("walk-back").addEventListener("click", () => { stopAuto(); go(current - 1); });
+    $("walk-next").addEventListener("click", () => { stopAuto(); go(current + 1); });
+    $("walk-auto").addEventListener("click", () => {
+      if (timer) { stopAuto(); return; }
+      $("walk-auto").setAttribute("aria-pressed", "true");
+      $("walk-auto").innerHTML = "&#10073;&#10073; Auto-playing";
+      reportActivity("action", "walk_autoplay");
+      timer = setInterval(() => {
+        if (current >= STEPS.length - 1) { stopAuto(); return; }
+        go(current + 1);
+      }, 6500);
+    });
+
+    $("sign-out-btn").addEventListener("click", () => {
+      stopAuto();
+      flowStop();
+      reportActivity("action", "sign_out");
+      demoSignOut();
+      $("demo-shell").hidden = true;
+      $("lock-screen").hidden = false;
+    });
+
+    go(0);
+  }
+}
+</script>
+</body>
+</html>
