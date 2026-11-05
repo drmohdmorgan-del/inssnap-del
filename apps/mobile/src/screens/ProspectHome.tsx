@@ -33,6 +33,7 @@ import {
   useShowings,
   type ScreenProps,
 } from "./shared";
+import { ReadyCard } from "./cards";
 
 export function ProspectHome({ client, user, onSignOut }: ScreenProps) {
   const { showings, error, reload } = useShowings(client);
@@ -121,6 +122,8 @@ export function ProspectHome({ client, user, onSignOut }: ScreenProps) {
             <Body>{actionError}</Body>
           </Card>
         ) : null}
+
+        <ReadyCard client={client} />
 
         {/* Live request status */}
         {(active.length > 0 || completed.length > 0) && (

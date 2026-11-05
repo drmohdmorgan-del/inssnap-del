@@ -67,7 +67,7 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-6">
           <p className="text-xs text-white/40">
             © 2026 INSSNAPP — a product of IEC, Inc. (International Empire
-            Consultants, Inc.). All rights reserved.
+            Consultants, Inc.). All rights reserved. Developed by IEC, Inc.
           </p>
           <p className="text-xs text-white/40">
             Currently in development and pilot — product details may change.

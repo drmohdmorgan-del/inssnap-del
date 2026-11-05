@@ -63,7 +63,7 @@ export function LogoMark({ size = 40 }: { size?: number }) {
       accessibilityLabel="INSSNAPP"
     >
       <Image
-        source={require("../assets/inssnapp-logo.png")}
+        source={require("../../assets/inssnapp-logo.png")}
         style={{ width: size, height: size, resizeMode: "contain" }}
         accessibilityLabel="INSSNAPP"
       />

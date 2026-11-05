@@ -66,6 +66,9 @@ export default function MobileLandingPage() {
             Sign in
           </Link>
         </p>
+        <p className="mt-3 text-center text-[11px] text-slate-500">
+          INSSNAPP — a product of IEC, Inc. · Developed by IEC, Inc.
+        </p>
 
         <div className="mt-6">
           <TestModeBar />

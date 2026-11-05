@@ -28,6 +28,7 @@ import {
   useUnits,
   type ScreenProps,
 } from "./shared";
+import { BrokerLicenseCard, BrokerTierCard } from "./cards";
 
 const ACTION_LABELS: Record<string, string> = {
   "accept-assignment": "Accept assignment",
@@ -101,6 +102,9 @@ export function BrokerHome({ client, user, onSignOut }: ScreenProps) {
             <Body>{actionError}</Body>
           </Card>
         ) : null}
+
+        <BrokerTierCard client={client} />
+        <BrokerLicenseCard client={client} />
 
         <Title>Assignment queue</Title>
         <Muted>

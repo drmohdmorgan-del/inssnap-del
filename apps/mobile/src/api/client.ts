@@ -18,6 +18,10 @@
  */
 
 import type {
+  BrokerLicenseInfo,
+  BrokerTierInfo,
+  ProspectPacket,
+  ProspectPacketPatch,
   Rating,
   ResidentEnrollment,
   SessionUser,
@@ -330,5 +334,45 @@ export class InssnappClient {
       available,
     });
     return unit;
+  }
+
+  // ---- Prospect packet (Ready tier) ----------------------------------------
+
+  /** The signed-in prospect's application packet + readiness. */
+  async myProspectPacket(): Promise<ProspectPacket> {
+    return this.get<ProspectPacket>("/api/prospects/me");
+  }
+
+  /** Saves packet fields (and optionally switches the tier). */
+  async saveProspectPacket(patch: ProspectPacketPatch): Promise<ProspectPacket> {
+    return this.post<ProspectPacket>("/api/prospects/me", patch);
+  }
+
+  // ---- Broker profile: subscription tier + license vetting -----------------
+
+  /** The signed-in broker's subscription tier + lead usage. */
+  async myBrokerTier(): Promise<BrokerTierInfo> {
+    return this.get<BrokerTierInfo>("/api/brokers/me/tier");
+  }
+
+  /** Self-serve tier selection — free during the pilot (no payment provider). */
+  async selectBrokerTier(tier: string): Promise<BrokerTierInfo> {
+    return this.post<BrokerTierInfo>("/api/brokers/me/tier", { tier });
+  }
+
+  /** The signed-in broker's license-vetting state. */
+  async myBrokerLicense(): Promise<BrokerLicenseInfo> {
+    return this.get<BrokerLicenseInfo>("/api/brokers/me/license");
+  }
+
+  /** Submits (or resubmits) the broker's license for management verification. */
+  async submitBrokerLicense(
+    licenseNumber: string,
+    licenseState: string,
+  ): Promise<BrokerLicenseInfo> {
+    return this.post<BrokerLicenseInfo>("/api/brokers/me/license", {
+      licenseNumber,
+      licenseState,
+    });
   }
 }

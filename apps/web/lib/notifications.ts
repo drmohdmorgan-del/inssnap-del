@@ -27,6 +27,13 @@ import {
 } from "@inssnapp/integrations";
 import { db } from "./db";
 import { getAuthStore } from "./auth-store";
+import { ensureEmailAdapterRegistered } from "./email-adapter";
+
+// Pilot-readiness (2026-11-05): install the real email provider at
+// module load when RESEND_API_KEY is configured — otherwise signup
+// verification codes and showing notifications would only ever reach
+// the server console. No-op without the key (dev/test keep console).
+ensureEmailAdapterRegistered();
 
 const TRANSITION_EVENTS: Partial<Record<Transition, NotificationEventName>> = {
   PROSPECT_REQUEST: "showing.request_received",

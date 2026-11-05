@@ -259,3 +259,79 @@ describe("InssnappClient showing actions", () => {
     });
   });
 });
+
+describe("InssnappClient profile cards (Ready + broker)", () => {
+  it("reads and saves the prospect Ready packet", async () => {
+    const packet = {
+      tier: "base",
+      application: {
+        moveInDate: null,
+        occupants: null,
+        hasPets: null,
+        employmentStatus: null,
+        incomeRange: null,
+        statement: null,
+      },
+      documents: [],
+      readiness: {
+        applicationComplete: false,
+        documentsLoaded: false,
+        screeningCompleted: false,
+        screeningStatus: null,
+        packetAssembled: false,
+      },
+    };
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const f = stubFetch((url, init) => {
+      calls.push({ url, init });
+      return stubResponse({ body: packet });
+    });
+    const client = new InssnappClient({ baseUrl: "http://api:3000", fetchImpl: f });
+    const view = await client.myProspectPacket();
+    expect(view.tier).toBe("base");
+    expect(calls[0].url).toBe("http://api:3000/api/prospects/me");
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
+    await client.saveProspectPacket({ tier: "ready", documents: ["government_id"] });
+    expect(calls[1].url).toBe("http://api:3000/api/prospects/me");
+    expect(calls[1].init?.method).toBe("POST");
+    expect(JSON.parse(calls[1].init?.body as string)).toEqual({
+      tier: "ready",
+      documents: ["government_id"],
+    });
+  });
+
+  it("reads and selects the broker tier, reads and submits the license", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const f = stubFetch((url, init) => {
+      calls.push({ url, init });
+      if (url.endsWith("/api/brokers/me/tier")) {
+        return stubResponse({
+          body: { tier: "trial", used: 0, limit: 5, canAcceptMore: true, tiers: {} },
+        });
+      }
+      return stubResponse({
+        body: {
+          licenseNumber: null,
+          licenseState: null,
+          licenseStatus: "none",
+          licenseReviewNote: null,
+          registry: null,
+        },
+      });
+    });
+    const client = new InssnappClient({ baseUrl: "http://api:3000", fetchImpl: f });
+    const tier = await client.myBrokerTier();
+    expect(tier.tier).toBe("trial");
+    await client.selectBrokerTier("basic");
+    expect(calls[1].url).toBe("http://api:3000/api/brokers/me/tier");
+    expect(JSON.parse(calls[1].init?.body as string)).toEqual({ tier: "basic" });
+    const license = await client.myBrokerLicense();
+    expect(license.licenseStatus).toBe("none");
+    await client.submitBrokerLicense("123456", "MA");
+    expect(calls[3].url).toBe("http://api:3000/api/brokers/me/license");
+    expect(JSON.parse(calls[3].init?.body as string)).toEqual({
+      licenseNumber: "123456",
+      licenseState: "MA",
+    });
+  });
+});
