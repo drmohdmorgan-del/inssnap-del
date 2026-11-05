@@ -466,3 +466,33 @@ VALUES (
   false
 )
 ON CONFLICT (organization_id, email) DO NOTHING;
+
+-- ---- Website NDA signing records (2026-11-05) ------------------------------
+-- Audit store for the INSNAPP website NDA -> Demo Portal flow: a visitor
+-- signs the IEC mutual CNDA on /legal/cnda, and the activation email with
+-- the demo access link follows automatically. Mirrors the InSnap record
+-- discipline: the signing record is written FIRST, before any demo
+-- provisioning or email, and a failed insert fails the whole submission —
+-- no orphan executions, no fake success. The record is the verification
+-- for the provisioning path: /api/nda/submit schedules demo provisioning
+-- only after this insert has succeeded. Not org-scoped: the signer may
+-- not belong to any organization yet. Text id / signed_at mirror the
+-- InSnap table (and screening_reports' text id precedent above).
+CREATE TABLE IF NOT EXISTS nda_signing_records (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL,
+  email            TEXT NOT NULL,
+  company          TEXT NOT NULL,
+  title            TEXT NOT NULL DEFAULT '',
+  typed_signature  TEXT NOT NULL,
+  attestation      TEXT NOT NULL,
+  document_id      TEXT NOT NULL,
+  document_version TEXT NOT NULL,
+  payload_hash     TEXT NOT NULL,
+  ip_address       TEXT NOT NULL DEFAULT '',
+  user_agent       TEXT NOT NULL DEFAULT '',
+  source           TEXT NOT NULL DEFAULT 'website-nda',
+  signed_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS nda_signing_records_email_idx ON nda_signing_records (email);
+CREATE INDEX IF NOT EXISTS nda_signing_records_signed_at_idx ON nda_signing_records (signed_at DESC);

@@ -14,9 +14,10 @@ import {
   type SecurityEvent,
   type ContactSubmission,
   type ProspectDocumentRecord,
+  type NdaSigningRecord,
 } from "./store";
 
-export type { SecurityEvent };
+export type { SecurityEvent, NdaSigningRecord };
 
 // ---- Typed rows returned by the unified data layer (TASK-007) --------------
 // Postgres rows are mapped onto these shapes; the in-memory seed returns
@@ -342,6 +343,68 @@ export const db = {
         [e.name, e.email, e.company ?? null, e.role ?? null, e.message],
       );
       return res.rows[0];
+    },
+  },
+
+  ndaSignings: {
+    /**
+     * Website NDA signing records (not org-scoped; 2026-11-05). The
+     * record is written FIRST, before any demo provisioning — callers
+     * (lib/nda-signings.ts) let a failed insert fail the submission.
+     */
+    async insert(record: NdaSigningRecord): Promise<NdaSigningRecord> {
+      if (!usingPostgres) return mem.ndaSigningRecords.insert(record);
+      const pool = await getPool();
+      const res = await pool.query(
+        `INSERT INTO nda_signing_records
+           (id, name, email, company, title, typed_signature, attestation,
+            document_id, document_version, payload_hash, ip_address,
+            user_agent, source, signed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         RETURNING id, name, email, company, title,
+                   typed_signature AS "typedSignature", attestation,
+                   document_id AS "documentId",
+                   document_version AS "documentVersion",
+                   payload_hash AS "payloadHash",
+                   ip_address AS "ipAddress", user_agent AS "userAgent",
+                   source, signed_at AS "signedAt"`,
+        [
+          record.id,
+          record.name,
+          record.email,
+          record.company,
+          record.title,
+          record.typedSignature,
+          record.attestation,
+          record.documentId,
+          record.documentVersion,
+          record.payloadHash,
+          record.ipAddress,
+          record.userAgent,
+          record.source,
+          record.signedAt,
+        ],
+      );
+      return res.rows[0];
+    },
+
+    /** Read back signing records, newest first (admin/audit use). */
+    async list(limit = 100): Promise<NdaSigningRecord[]> {
+      if (!usingPostgres) return mem.ndaSigningRecords.list(limit);
+      const pool = await getPool();
+      const safeLimit = Math.min(Math.max(limit, 1), 500);
+      const res = await pool.query(
+        `SELECT id, name, email, company, title,
+                typed_signature AS "typedSignature", attestation,
+                document_id AS "documentId",
+                document_version AS "documentVersion",
+                payload_hash AS "payloadHash",
+                ip_address AS "ipAddress", user_agent AS "userAgent",
+                source, signed_at AS "signedAt"
+         FROM nda_signing_records
+         ORDER BY signed_at DESC LIMIT ${safeLimit}`,
+      );
+      return res.rows;
     },
   },
 

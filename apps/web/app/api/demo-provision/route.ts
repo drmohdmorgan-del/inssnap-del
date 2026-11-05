@@ -7,8 +7,10 @@ import { handleDemoProvision } from "@/lib/demo-provision-core";
    All logic lives in lib/demo-provision-core.js: secret-gated,
    fail-closed without DEMO_PROVISION_SECRET /
    DEMO_PROVISION_GITHUB_TOKEN, idempotent per signer, activation
-   email via Resend. DORMANT-READY: no website CNDA trigger calls it
-   yet — that wiring is a later step; never called by a browser. */
+   email via Resend. TRIGGER ARMED (2026-11-05): the /legal/cnda
+   signing flow calls the core in-process after recording; this
+   route serves external callers (e.g. the IEC Office) through the
+   same gates. Never called by a browser. */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

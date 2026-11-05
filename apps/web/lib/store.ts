@@ -223,6 +223,30 @@ export interface ContactSubmission {
   createdAt: string;
 }
 
+/**
+ * Website NDA signing record (2026-11-05). The audit record for the
+ * /legal/cnda signing that creates INSNAPP Demo Portal access: written
+ * FIRST, before any provisioning — a failed insert fails the submission.
+ * Not org-scoped (the signer may not belong to any organization yet).
+ * Mirrors the nda_signing_records table in packages/db/src/schema.sql.
+ */
+export interface NdaSigningRecord {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  title: string;
+  typedSignature: string;
+  attestation: string;
+  documentId: string;
+  documentVersion: string;
+  payloadHash: string;
+  ipAddress: string;
+  userAgent: string;
+  source: string;
+  signedAt: string;
+}
+
 export interface SecurityEvent {
   id: string;
   /** NULL when the event cannot be attributed to an organization (unknown-email login attempt). */
@@ -298,6 +322,8 @@ interface StoreData {
   securityEvents: SecurityEvent[];
   /** Contact-us landing page submissions (not org-scoped). */
   contactSubmissions: ContactSubmission[];
+  /** Website NDA signing records (not org-scoped; 2026-11-05). */
+  ndaSigningRecords: NdaSigningRecord[];
   /** Screening consent records (org-scoped; TASK-009). */
   screeningConsents: ScreeningConsent[];
   /** Screening report records (org-scoped; TASK-009). */
@@ -390,6 +416,7 @@ function seed(): StoreData {
     ],
     securityEvents: [],
     contactSubmissions: [],
+    ndaSigningRecords: [],
     screeningConsents: [],
     screeningReports: [],
     screeningLegalApprovals: [],
@@ -455,6 +482,7 @@ function seedProduction(): StoreData {
     pmsAdapters: [],
     securityEvents: [],
     contactSubmissions: [],
+    ndaSigningRecords: [],
     screeningConsents: [],
     screeningReports: [],
     screeningLegalApprovals: [],
@@ -1012,6 +1040,21 @@ export const store = {
       };
       db.contactSubmissions.push(submission);
       return submission;
+    },
+  },
+
+  ndaSigningRecords: {
+    /** Store a fully-built signing record (id + payload hash are computed
+     *  by lib/nda-signings.ts, mirroring the Postgres path in lib/db.ts). */
+    insert(record: NdaSigningRecord): NdaSigningRecord {
+      db.ndaSigningRecords.push(record);
+      return record;
+    },
+    /** Newest first (admin/audit use). */
+    list(limit = 100): NdaSigningRecord[] {
+      return [...db.ndaSigningRecords]
+        .sort((a, b) => (a.signedAt < b.signedAt ? 1 : -1))
+        .slice(0, limit);
     },
   },
 

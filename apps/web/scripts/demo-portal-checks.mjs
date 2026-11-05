@@ -1,7 +1,8 @@
 "use strict";
 /* INSNAPP Demo Portal — Node check suites (mirrors the InSnap suites).
    Sections: portal gate · activation · notify core (email + activity
-   forward) · demo provision core · demo-app renders · source locks.
+   forward) · demo provision core · demo-app renders · source locks ·
+   NDA signing (page locks + submit core, record-first).
    Run: node scripts/demo-portal-checks.mjs   (from apps/web) */
 import fs from "node:fs";
 import vm from "node:vm";
@@ -351,7 +352,8 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
     eq(commit.committer.name, "drmohdmorgan-del", "provision: commit under the repo standing identity");
     ok(s.state.source.includes('email: "drmohdmorgan@gmail.com"') && s.state.source.indexOf('email: "drmohdmorgan@gmail.com"') < s.state.source.indexOf("signer@x.example"), "provision: existing entries preserved byte-for-byte (order + content)");
     const list = core._internals.parseProvisioning(s.state.source);
-    eq(list.length, 3, "provision: three entries after create");
+    const baseCount = core._internals.parseProvisioning(baseSource).length;
+    eq(list.length, baseCount + 1, "provision: exactly one entry added by create");
     const entry = list.find(a => a.email === "signer@x.example");
     ok(/^[0-9a-f]{48}$/.test(entry.token), "provision: token is 48 hex chars");
     eq(entry.status, "invited", "provision: new entry invited");
@@ -492,6 +494,173 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
   walk(WEB + "/app");
   walk(WEB + "/components");
   eq(hits.length, 0, "locks: zero /demo references in public pages/components" + (hits.length ? " — " + hits.join(", ") : ""));
+}
+
+/* ================= NDA SIGNING (page locks + submit core) ================= */
+{
+  const core = require(WEB + "/lib/nda-submit-core.js");
+  const page = fs.readFileSync(WEB + "/app/legal/cnda/page.tsx", "utf8");
+  const panel = fs.readFileSync(WEB + "/app/legal/cnda/SigningPanel.tsx", "utf8");
+  const route = fs.readFileSync(WEB + "/app/api/nda/submit/route.ts", "utf8");
+  const signings = fs.readFileSync(WEB + "/lib/nda-signings.ts", "utf8");
+  const schema = fs.readFileSync(WEB + "/../../packages/db/src/schema.sql", "utf8");
+
+  /* Page locks — the full IEC mutual CNDA, verbatim headings */
+  ok(page.includes("MUTUAL NON-DISCLOSURE AGREEMENT"), "nda page: agreement heading present");
+  for (const h of [
+    "1. Confidential Information", "2. Obligations", "3. Permitted disclosures",
+    "4. Legally compelled disclosure", "5. No license; no obligation",
+    "6. Return or destruction", "7. Term and survival", "8. Remedies",
+    "9. Protected health information", "10. General"
+  ]) ok(page.includes(h), "nda page: CNDA section heading '" + h + "' present");
+  ok(page.includes("SCHEDULE A - IEC ASSETS COVERED BY THIS AGREEMENT"), "nda page: Schedule A heading present");
+  ok(page.includes("MEDEXEC (getmedexec.com)") && page.includes("All other IEC assets"), "nda page: Schedule A assets present");
+  ok(page.includes("IN WITNESS WHEREOF"), "nda page: execution block present");
+  ok(page.includes("International Empire Consultants, Inc."), "nda page: IEC party block present");
+  ok(page.includes("/legal/iec-mutual-nda-all-assets.pdf"), "nda page: PDF download linked");
+  ok(fs.existsSync(WEB + "/public/legal/iec-mutual-nda-all-assets.pdf"), "nda page: PDF file exists in public/legal");
+  ok(page.includes("Developed by IEC, Inc."), "nda page: carries Developed by IEC, Inc.");
+
+  /* Forbidden string — nowhere in the NDA surface */
+  for (const [label, src] of [["page", page], ["panel", panel], ["route", route], ["signings", signings], ["schema", schema]]) {
+    ok(!/Home For All/i.test(src), "nda: no forbidden string in " + label);
+  }
+
+  /* Signing panel locks */
+  ok(panel.includes('"/api/nda/submit"'), "nda panel: posts /api/nda/submit");
+  ok(panel.includes(core.ATTESTATION_TEXT), "nda panel: attestation string identical to the submit core");
+  eq(core.ATTESTATION_TEXT,
+    "I agree to the terms of this Mutual Non-Disclosure Agreement, I am authorized to sign on behalf of the company named above, and I sign electronically by typing my name.",
+    "nda core: ATTESTATION_TEXT is the locked statement");
+  ok(panel.includes("INSNAPP Demo Portal"), "nda panel: names the INSNAPP Demo Portal");
+  ok(panel.includes("activation email"), "nda panel: states the activation email follows");
+  ok(panel.includes("set your own password"), "nda panel: signer sets their own password");
+  ok(panel.includes("synthetic data only"), "nda panel: synthetic data only");
+  ok(panel.includes("live leads, not cold leads"), "nda panel: live leads, not cold leads positioning");
+  ok(!panel.includes('"/demo') && !page.includes('"/demo'), "nda: page + panel never link the portal");
+
+  /* Route + record-store locks */
+  ok(route.includes("recordNdaSigning") && route.includes("handleNdaSubmit"), "nda route: wires the record store + submit core");
+  ok(route.includes("after("), "nda route: provisioning runs after the response");
+  ok(route.includes("405"), "nda route: GET answers 405");
+  ok(signings.includes('"iec-cnda-insnapp"') || signings.includes("iec-cnda-insnapp"), "nda signings: document id iec-cnda-insnapp");
+  ok(signings.includes("2026-11-05"), "nda signings: document version 2026-11-05");
+  ok(signings.includes("createHash") && signings.includes("sha256"), "nda signings: SHA-256 payload hash");
+  ok(schema.includes("CREATE TABLE IF NOT EXISTS nda_signing_records"), "nda schema: nda_signing_records table present");
+  for (const col of ["typed_signature", "attestation", "document_id", "document_version", "payload_hash", "ip_address", "user_agent", "signed_at"]) {
+    ok(schema.includes(col), "nda schema: column " + col + " present");
+  }
+
+  /* Submit core behavior — record/provision stubbed */
+  const validBody = {
+    name: "Test Signer", email: "Signer@X.Example", company: "Acme Co",
+    title: "VP", signature: "Test Signer", attestation: true
+  };
+  const run = async () => {
+    /* Method gate */
+    let recordCalls = 0;
+    let res = await core.handleNdaSubmit({
+      method: "GET", body: validBody, env: {},
+      recordImpl: async () => { recordCalls++; }
+    });
+    eq(res.status, 405, "nda core: GET 405");
+    eq(recordCalls, 0, "nda core: GET records nothing");
+
+    /* Validation — 400, nothing recorded, for each broken field */
+    const broken = [
+      ["missing name", { ...validBody, name: "" }],
+      ["bad email", { ...validBody, email: "not-an-email" }],
+      ["missing company", { ...validBody, company: "" }],
+      ["one-char signature", { ...validBody, signature: "T" }],
+      ["attestation false", { ...validBody, attestation: false }],
+      ["attestation missing", { ...validBody, attestation: undefined }]
+    ];
+    for (const [label, body] of broken) {
+      recordCalls = 0;
+      res = await core.handleNdaSubmit({
+        method: "POST", body, env: {},
+        recordImpl: async () => { recordCalls++; return { id: "x", signedAt: "t" }; }
+      });
+      eq(res.status, 400, "nda core: " + label + " → 400");
+      eq(res.json.error, "invalid_signing", "nda core: " + label + " error code");
+      eq(recordCalls, 0, "nda core: " + label + " records nothing");
+    }
+
+    /* Record failure — loud 500, provisioning never scheduled */
+    let afterCalls = 0, provisionCalls = 0;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
+      recordImpl: async () => { throw new Error("db_down"); },
+      provisionImpl: async () => { provisionCalls++; return { status: 200, json: {} }; },
+      afterImpl: () => { afterCalls++; }
+    });
+    eq(res.status, 500, "nda core: record failure → 500");
+    eq(res.json.error, "recording", "nda core: record failure error code");
+    eq(afterCalls, 0, "nda core: record failure schedules no provisioning");
+    eq(provisionCalls, 0, "nda core: record failure never provisions");
+
+    /* Success — record first, trigger after, dormant without secret */
+    const order = [];
+    let recorded = null, job = null;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: {}, ip: "203.0.113.9", userAgent: "check-suite",
+      recordImpl: async (rec) => { order.push("record"); recorded = rec; return { id: "rec-1", signedAt: "2026-11-05T12:00:00.000Z" }; },
+      provisionImpl: async () => { order.push("provision"); return { status: 200, json: {} }; },
+      afterImpl: (fn) => { order.push("after"); job = fn; }
+    });
+    eq(res.status, 200, "nda core: success 200");
+    eq(res.json.ok, true, "nda core: success ok true");
+    eq(res.json.recordId, "rec-1", "nda core: success returns the record id");
+    eq(res.json.signedAt, "2026-11-05T12:00:00.000Z", "nda core: success returns signedAt");
+    eq(order.join(","), "record,after", "nda core: record first, trigger scheduled after");
+    eq(recorded.attestation, core.ATTESTATION_TEXT, "nda core: record stores the exact attestation");
+    eq(recorded.email, "signer@x.example", "nda core: record email normalized lowercase");
+    eq(recorded.typedSignature, "Test Signer", "nda core: typed signature mapped from signature field");
+    eq(recorded.source, "website-nda", "nda core: record source is website-nda");
+    eq(recorded.ipAddress, "203.0.113.9", "nda core: record carries the ip");
+    eq(recorded.userAgent, "check-suite", "nda core: record carries the user agent");
+    await job();
+    ok(!order.includes("provision"), "nda core: dormant without secret — provision never called");
+
+    /* Success — with the secret, the after-job provisions in-process */
+    let provisionArgs = null; job = null;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
+      recordImpl: async () => ({ id: "rec-2", signedAt: "2026-11-05T12:00:00.000Z" }),
+      provisionImpl: async (a) => { provisionArgs = a; return { status: 200, json: { ok: true } }; },
+      afterImpl: (fn) => { job = fn; }
+    });
+    eq(res.status, 200, "nda core: armed success 200");
+    await job();
+    ok(provisionArgs !== null, "nda core: armed trigger calls provisioning");
+    eq(provisionArgs.method, "POST", "nda core: provision call is a POST");
+    eq(provisionArgs.headers["x-demo-provision-secret"], "s3cret", "nda core: provision call carries the shared secret");
+    eq(provisionArgs.body.email, "signer@x.example", "nda core: provision body carries the signer email");
+    eq(provisionArgs.body.source, "website-nda", "nda core: provision body source is website-nda");
+
+    /* Provisioning failures can never fail a recorded signing */
+    job = null;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
+      recordImpl: async () => ({ id: "rec-3", signedAt: "2026-11-05T12:00:00.000Z" }),
+      provisionImpl: async () => { throw new Error("provision_down"); },
+      afterImpl: (fn) => { job = fn; }
+    });
+    eq(res.status, 200, "nda core: signing stands when provisioning throws");
+    await job();
+    ok(true, "nda core: throwing provision is swallowed by the trigger");
+
+    /* No afterImpl — the dormant trigger runs inline, signing unaffected */
+    provisionCalls = 0;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: {},
+      recordImpl: async () => ({ id: "rec-4", signedAt: "2026-11-05T12:00:00.000Z" }),
+      provisionImpl: async () => { provisionCalls++; return { status: 200, json: {} }; }
+    });
+    eq(res.status, 200, "nda core: inline dormant trigger still 200");
+    eq(provisionCalls, 0, "nda core: inline dormant trigger never provisions");
+  };
+  await run();
 }
 
 console.log(`\nINSNAPP demo portal checks: ${pass} passed / ${fail} failed`);

@@ -10,11 +10,14 @@
      Headers: x-demo-provision-secret: <DEMO_PROVISION_SECRET>
      Body:    { name, email, source }   (source is informational)
 
-   DORMANT-READY (2026-11-05): INSNAPP has no website CNDA-signing
-   trigger wired yet — that wiring is a later step, exactly as InSnap
-   stood before its trigger was armed. This endpoint exists now so
-   the trigger (or an IEC Office call) provisions through the same
-   gates when it lands. It is never called by a browser.
+   TRIGGER ARMED (2026-11-05): the website CNDA signing at
+   /legal/cnda records first (nda_signing_records, via
+   lib/nda-submit-core.js) and then triggers this core IN-PROCESS
+   after the response — the same arming InSnap carries. An IEC
+   Office call provisions through the same gates. The endpoint is
+   never called by a browser. Fail-closed without its env keys:
+   with DEMO_PROVISION_SECRET unset the trigger is a logged NO-OP
+   and a recorded signing is unaffected.
 
    WHAT IT DOES
    1. Reads the CURRENT apps/web/public/demo/provisioning.js from the
