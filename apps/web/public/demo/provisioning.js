@@ -67,6 +67,13 @@ const DEMO_PROVISIONED_ACCOUNTS = [
     token: "f53c67ac9307343aa436c846e2979323437dfa8933c4c6d8",
     status: "invited",
     issuedAt: "2026-11-05T07:58:14-05:00"
+  },
+  {
+    email: "zeeshan@zeeqai.com",
+    name: "Zeeshan",
+    token: "d56b1f8d5afbf2272feba76af4cec6dadbe765f8819a0179",
+    status: "invited",
+    issuedAt: "2026-11-07T15:57:52-05:00"
   }
 ];
 
