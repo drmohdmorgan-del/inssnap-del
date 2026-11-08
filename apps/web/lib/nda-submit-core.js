@@ -84,6 +84,14 @@ async function triggerDemoProvision(env, signer, provisionImpl) {
  * @returns {Promise<{ status: number, json: object }>}
  */
 async function handleNdaSubmit(args) {
+  /* RETIRED 2026-11-08 — NDA signing has moved to IEC's ONE central
+     signing page; this local endpoint no longer accepts signings.
+     Every submission is refused with 410 before validation, recording,
+     or provisioning. Existing records stay readable and intact via
+     lib/nda-signings.ts (untouched). The pre-retirement pipeline
+     below is kept for reference only and is unreachable. */
+  return { status: 410, json: { ok: false, error: "retired", message: "NDA signing has moved to IEC's central signing page.", signAt: "https://iecincglobal.com/nda.html?origin=inssnapp" } };
+
   const env = args.env || {};
   if (args.method !== "POST") return { status: 405, json: { ok: false, error: "method_not_allowed" } };
 

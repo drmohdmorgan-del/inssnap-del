@@ -2,7 +2,8 @@
 /* INSNAPP Demo Portal — Node check suites (mirrors the InSnap suites).
    Sections: portal gate · activation · notify core (email + activity
    forward) · demo provision core · demo-app renders · source locks ·
-   NDA signing (page locks + submit core, record-first).
+   NDA signing (page locks + submit core, RETIRED 410 — signing moved
+   to IEC's central signing page 2026-11-08).
    Run: node scripts/demo-portal-checks.mjs   (from apps/web) */
 import fs from "node:fs";
 import vm from "node:vm";
@@ -551,22 +552,44 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
     ok(schema.includes(col), "nda schema: column " + col + " present");
   }
 
-  /* Submit core behavior — record/provision stubbed */
+  /* Submit core behavior — RETIRED 2026-11-08: signing moved to IEC's
+     ONE central signing page. Every call is refused 410 before
+     validation, recording, or provisioning; existing records stay
+     readable via lib/nda-signings.ts. */
   const validBody = {
     name: "Test Signer", email: "Signer@X.Example", company: "Acme Co",
     title: "VP", signature: "Test Signer", attestation: true
   };
   const run = async () => {
-    /* Method gate */
+    /* Any method → 410 retired, nothing recorded */
     let recordCalls = 0;
     let res = await core.handleNdaSubmit({
       method: "GET", body: validBody, env: {},
       recordImpl: async () => { recordCalls++; }
     });
-    eq(res.status, 405, "nda core: GET 405");
+    eq(res.status, 410, "nda core: GET 410 (retired)");
+    eq(res.json.error, "retired", "nda core: GET error code retired");
     eq(recordCalls, 0, "nda core: GET records nothing");
 
-    /* Validation — 400, nothing recorded, for each broken field */
+    /* The full 410 contract on a valid POST */
+    recordCalls = 0;
+    let afterCalls = 0, provisionCalls = 0;
+    res = await core.handleNdaSubmit({
+      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
+      recordImpl: async () => { recordCalls++; return { id: "x", signedAt: "t" }; },
+      provisionImpl: async () => { provisionCalls++; return { status: 200, json: {} }; },
+      afterImpl: () => { afterCalls++; }
+    });
+    eq(res.status, 410, "nda core: valid POST → 410 retired");
+    eq(res.json.ok, false, "nda core: retired ok false");
+    eq(res.json.error, "retired", "nda core: retired error code");
+    eq(res.json.message, "NDA signing has moved to IEC's central signing page.", "nda core: retired message");
+    eq(res.json.signAt, "https://iecincglobal.com/nda.html?origin=inssnapp", "nda core: retired signAt points at the central page");
+    eq(recordCalls, 0, "nda core: retired records nothing");
+    eq(afterCalls, 0, "nda core: retired schedules no provisioning");
+    eq(provisionCalls, 0, "nda core: retired never provisions");
+
+    /* Broken submissions are retired too — 410 before validation */
     const broken = [
       ["missing name", { ...validBody, name: "" }],
       ["bad email", { ...validBody, email: "not-an-email" }],
@@ -581,84 +604,34 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
         method: "POST", body, env: {},
         recordImpl: async () => { recordCalls++; return { id: "x", signedAt: "t" }; }
       });
-      eq(res.status, 400, "nda core: " + label + " → 400");
-      eq(res.json.error, "invalid_signing", "nda core: " + label + " error code");
+      eq(res.status, 410, "nda core: " + label + " → 410 retired");
+      eq(res.json.error, "retired", "nda core: " + label + " error code");
       eq(recordCalls, 0, "nda core: " + label + " records nothing");
     }
 
-    /* Record failure — loud 500, provisioning never scheduled */
-    let afterCalls = 0, provisionCalls = 0;
+    /* A failing record store is never even reached */
+    afterCalls = 0; provisionCalls = 0;
     res = await core.handleNdaSubmit({
       method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
       recordImpl: async () => { throw new Error("db_down"); },
       provisionImpl: async () => { provisionCalls++; return { status: 200, json: {} }; },
       afterImpl: () => { afterCalls++; }
     });
-    eq(res.status, 500, "nda core: record failure → 500");
-    eq(res.json.error, "recording", "nda core: record failure error code");
-    eq(afterCalls, 0, "nda core: record failure schedules no provisioning");
-    eq(provisionCalls, 0, "nda core: record failure never provisions");
+    eq(res.status, 410, "nda core: retired beats record failure → 410");
+    eq(res.json.error, "retired", "nda core: retired-beats-record-failure error code");
+    eq(afterCalls, 0, "nda core: retired schedules no provisioning (record-failure stub)");
+    eq(provisionCalls, 0, "nda core: retired never provisions (record-failure stub)");
 
-    /* Success — record first, trigger after, dormant without secret */
-    const order = [];
-    let recorded = null, job = null;
-    res = await core.handleNdaSubmit({
-      method: "POST", body: validBody, env: {}, ip: "203.0.113.9", userAgent: "check-suite",
-      recordImpl: async (rec) => { order.push("record"); recorded = rec; return { id: "rec-1", signedAt: "2026-11-05T12:00:00.000Z" }; },
-      provisionImpl: async () => { order.push("provision"); return { status: 200, json: {} }; },
-      afterImpl: (fn) => { order.push("after"); job = fn; }
-    });
-    eq(res.status, 200, "nda core: success 200");
-    eq(res.json.ok, true, "nda core: success ok true");
-    eq(res.json.recordId, "rec-1", "nda core: success returns the record id");
-    eq(res.json.signedAt, "2026-11-05T12:00:00.000Z", "nda core: success returns signedAt");
-    eq(order.join(","), "record,after", "nda core: record first, trigger scheduled after");
-    eq(recorded.attestation, core.ATTESTATION_TEXT, "nda core: record stores the exact attestation");
-    eq(recorded.email, "signer@x.example", "nda core: record email normalized lowercase");
-    eq(recorded.typedSignature, "Test Signer", "nda core: typed signature mapped from signature field");
-    eq(recorded.source, "website-nda", "nda core: record source is website-nda");
-    eq(recorded.ipAddress, "203.0.113.9", "nda core: record carries the ip");
-    eq(recorded.userAgent, "check-suite", "nda core: record carries the user agent");
-    await job();
-    ok(!order.includes("provision"), "nda core: dormant without secret — provision never called");
-
-    /* Success — with the secret, the after-job provisions in-process */
-    let provisionArgs = null; job = null;
-    res = await core.handleNdaSubmit({
-      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
-      recordImpl: async () => ({ id: "rec-2", signedAt: "2026-11-05T12:00:00.000Z" }),
-      provisionImpl: async (a) => { provisionArgs = a; return { status: 200, json: { ok: true } }; },
-      afterImpl: (fn) => { job = fn; }
-    });
-    eq(res.status, 200, "nda core: armed success 200");
-    await job();
-    ok(provisionArgs !== null, "nda core: armed trigger calls provisioning");
-    eq(provisionArgs.method, "POST", "nda core: provision call is a POST");
-    eq(provisionArgs.headers["x-demo-provision-secret"], "s3cret", "nda core: provision call carries the shared secret");
-    eq(provisionArgs.body.email, "signer@x.example", "nda core: provision body carries the signer email");
-    eq(provisionArgs.body.source, "website-nda", "nda core: provision body source is website-nda");
-
-    /* Provisioning failures can never fail a recorded signing */
-    job = null;
-    res = await core.handleNdaSubmit({
-      method: "POST", body: validBody, env: { DEMO_PROVISION_SECRET: "s3cret" },
-      recordImpl: async () => ({ id: "rec-3", signedAt: "2026-11-05T12:00:00.000Z" }),
-      provisionImpl: async () => { throw new Error("provision_down"); },
-      afterImpl: (fn) => { job = fn; }
-    });
-    eq(res.status, 200, "nda core: signing stands when provisioning throws");
-    await job();
-    ok(true, "nda core: throwing provision is swallowed by the trigger");
-
-    /* No afterImpl — the dormant trigger runs inline, signing unaffected */
-    provisionCalls = 0;
+    /* No afterImpl — still 410, nothing recorded or provisioned */
+    recordCalls = 0; provisionCalls = 0;
     res = await core.handleNdaSubmit({
       method: "POST", body: validBody, env: {},
-      recordImpl: async () => ({ id: "rec-4", signedAt: "2026-11-05T12:00:00.000Z" }),
+      recordImpl: async () => { recordCalls++; return { id: "rec-4", signedAt: "2026-11-05T12:00:00.000Z" }; },
       provisionImpl: async () => { provisionCalls++; return { status: 200, json: {} }; }
     });
-    eq(res.status, 200, "nda core: inline dormant trigger still 200");
-    eq(provisionCalls, 0, "nda core: inline dormant trigger never provisions");
+    eq(res.status, 410, "nda core: no-afterImpl POST still 410");
+    eq(recordCalls, 0, "nda core: no-afterImpl records nothing");
+    eq(provisionCalls, 0, "nda core: no-afterImpl never provisions");
   };
   await run();
 }
