@@ -497,48 +497,36 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
   eq(hits.length, 0, "locks: zero /demo references in public pages/components" + (hits.length ? " — " + hits.join(", ") : ""));
 }
 
-/* ================= NDA SIGNING (page locks + submit core) ================= */
+/* ================= NDA SIGNING (centralized page locks + submit core) ================= */
 {
   const core = require(WEB + "/lib/nda-submit-core.js");
   const page = fs.readFileSync(WEB + "/app/legal/cnda/page.tsx", "utf8");
-  const panel = fs.readFileSync(WEB + "/app/legal/cnda/SigningPanel.tsx", "utf8");
   const route = fs.readFileSync(WEB + "/app/api/nda/submit/route.ts", "utf8");
   const signings = fs.readFileSync(WEB + "/lib/nda-signings.ts", "utf8");
   const schema = fs.readFileSync(WEB + "/../../packages/db/src/schema.sql", "utf8");
 
-  /* Page locks — the full IEC mutual CNDA, verbatim headings */
-  ok(page.includes("MUTUAL NON-DISCLOSURE AGREEMENT"), "nda page: agreement heading present");
-  for (const h of [
-    "1. Confidential Information", "2. Obligations", "3. Permitted disclosures",
-    "4. Legally compelled disclosure", "5. No license; no obligation",
-    "6. Return or destruction", "7. Term and survival", "8. Remedies",
-    "9. Protected health information", "10. General"
-  ]) ok(page.includes(h), "nda page: CNDA section heading '" + h + "' present");
-  ok(page.includes("SCHEDULE A - IEC ASSETS COVERED BY THIS AGREEMENT"), "nda page: Schedule A heading present");
-  ok(page.includes("MEDEXEC (getmedexec.com)") && page.includes("All other IEC assets"), "nda page: Schedule A assets present");
-  ok(page.includes("IN WITNESS WHEREOF"), "nda page: execution block present");
-  ok(page.includes("International Empire Consultants, Inc."), "nda page: IEC party block present");
-  ok(page.includes("/legal/iec-mutual-nda-all-assets.pdf"), "nda page: PDF download linked");
-  ok(fs.existsSync(WEB + "/public/legal/iec-mutual-nda-all-assets.pdf"), "nda page: PDF file exists in public/legal");
-  ok(page.includes("Developed by IEC, Inc."), "nda page: carries Developed by IEC, Inc.");
+  /* Page locks — CENTRALIZED (DrMorgan, 2026-11-21): the local CNDA form
+     is removed. /legal/cnda only redirects to IEC's ONE central signing
+     page with the INSNAPP origin recorded; the recorded universal
+     signing satisfies the NDA-first gate for INSNAPP Demo Portal access
+     exactly as the retired on-page signing did. */
+  ok(page.includes("redirect("), "nda page: server-redirects to the central signing page");
+  ok(page.includes("https://iecincglobal.com/nda.html?origin=inssnapp"), "nda page: central URL carries the inssnapp origin");
+  ok(!page.includes("SigningPanel"), "nda page: no local signing panel import");
+  ok(!fs.existsSync(WEB + "/app/legal/cnda/SigningPanel.tsx"), "nda panel: SigningPanel.tsx removed — no local CNDA form remains");
+  ok(!page.includes("IN WITNESS WHEREOF") && !page.includes("SCHEDULE A - IEC ASSETS COVERED"), "nda page: no local agreement text — the instrument lives only on the central page");
+  ok(!page.includes('"/demo'), "nda page: never links the portal");
 
   /* Forbidden string — nowhere in the NDA surface */
-  for (const [label, src] of [["page", page], ["panel", panel], ["route", route], ["signings", signings], ["schema", schema]]) {
+  for (const [label, src] of [["page", page], ["route", route], ["signings", signings], ["schema", schema]]) {
     ok(!/Home For All/i.test(src), "nda: no forbidden string in " + label);
   }
 
-  /* Signing panel locks */
-  ok(panel.includes('"/api/nda/submit"'), "nda panel: posts /api/nda/submit");
-  ok(panel.includes(core.ATTESTATION_TEXT), "nda panel: attestation string identical to the submit core");
+  /* Submit-core lock kept from the panel era: the retired core's
+     attestation statement stays byte-identical. */
   eq(core.ATTESTATION_TEXT,
     "I agree to the terms of this Mutual Non-Disclosure Agreement, I am authorized to sign on behalf of the company named above, and I sign electronically by typing my name.",
     "nda core: ATTESTATION_TEXT is the locked statement");
-  ok(panel.includes("INSNAPP Demo Portal"), "nda panel: names the INSNAPP Demo Portal");
-  ok(panel.includes("activation email"), "nda panel: states the activation email follows");
-  ok(panel.includes("set your own password"), "nda panel: signer sets their own password");
-  ok(panel.includes("synthetic data only"), "nda panel: synthetic data only");
-  ok(panel.includes("live leads, not cold leads"), "nda panel: live leads, not cold leads positioning");
-  ok(!panel.includes('"/demo') && !page.includes('"/demo'), "nda: page + panel never link the portal");
 
   /* Route + record-store locks */
   ok(route.includes("recordNdaSigning") && route.includes("handleNdaSubmit"), "nda route: wires the record store + submit core");
