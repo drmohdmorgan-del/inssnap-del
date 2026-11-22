@@ -90,7 +90,7 @@ async function handleNdaSubmit(args) {
      or provisioning. Existing records stay readable and intact via
      lib/nda-signings.ts (untouched). The pre-retirement pipeline
      below is kept for reference only and is unreachable. */
-  return { status: 410, json: { ok: false, error: "retired", message: "NDA signing has moved to IEC's central signing page.", signAt: "https://iecincglobal.com/nda.html?origin=inssnapp" } };
+  return { status: 410, json: { ok: false, error: "retired", message: "NDA signing has moved to IEC's central signing page.", signAt: "https://iecincglobal.com/cnda.html?origin=inssnapp" } };
 
   const env = args.env || {};
   if (args.method !== "POST") return { status: 405, json: { ok: false, error: "method_not_allowed" } };

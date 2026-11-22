@@ -511,7 +511,7 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
      signing satisfies the NDA-first gate for INSNAPP Demo Portal access
      exactly as the retired on-page signing did. */
   ok(page.includes("redirect("), "nda page: server-redirects to the central signing page");
-  ok(page.includes("https://iecincglobal.com/nda.html?origin=inssnapp"), "nda page: central URL carries the inssnapp origin");
+  ok(page.includes("https://iecincglobal.com/cnda.html?origin=inssnapp"), "nda page: central URL carries the inssnapp origin");
   ok(!page.includes("SigningPanel"), "nda page: no local signing panel import");
   ok(!fs.existsSync(WEB + "/app/legal/cnda/SigningPanel.tsx"), "nda panel: SigningPanel.tsx removed — no local CNDA form remains");
   ok(!page.includes("IN WITNESS WHEREOF") && !page.includes("SCHEDULE A - IEC ASSETS COVERED"), "nda page: no local agreement text — the instrument lives only on the central page");
@@ -572,7 +572,7 @@ const TOKEN = "e8b021ff67aba7b029fffcb91e363c5b613dbf6e58c7274a";
     eq(res.json.ok, false, "nda core: retired ok false");
     eq(res.json.error, "retired", "nda core: retired error code");
     eq(res.json.message, "NDA signing has moved to IEC's central signing page.", "nda core: retired message");
-    eq(res.json.signAt, "https://iecincglobal.com/nda.html?origin=inssnapp", "nda core: retired signAt points at the central page");
+    eq(res.json.signAt, "https://iecincglobal.com/cnda.html?origin=inssnapp", "nda core: retired signAt points at the central page");
     eq(recordCalls, 0, "nda core: retired records nothing");
     eq(afterCalls, 0, "nda core: retired schedules no provisioning");
     eq(provisionCalls, 0, "nda core: retired never provisions");

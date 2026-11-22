@@ -1,7 +1,7 @@
 /**
  * CNDA signing moved to IEC's ONE central signing page (2026-11-08,
  * DrMorgan): there is a single universal IEC mutual NDA for all assets,
- * signed at iecincglobal.com/nda.html. This route redirects there with
+ * signed at iecincglobal.com/cnda.html. This route redirects there with
  * the INSNAPP origin recorded; the recorded universal signing satisfies
  * the NDA-first gate for INSNAPP Demo Portal access exactly as the old
  * on-page signing did. (The previous on-page instrument + SigningPanel
@@ -18,5 +18,5 @@ export const metadata: Metadata = {
 };
 
 export default function CndaPage() {
-  redirect("https://iecincglobal.com/nda.html?origin=inssnapp");
+  redirect("https://iecincglobal.com/cnda.html?origin=inssnapp");
 }
