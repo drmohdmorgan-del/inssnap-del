@@ -3,6 +3,7 @@
 import { fetchSession } from "../../lib/session";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { TestModeBar } from "../../components/TestModeBar";
+import PasswordInput from "../../components/PasswordInput";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -176,13 +177,14 @@ export default function LoginForm() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-brand-navy-light">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-lg border border-brand-navy-light/25 px-3 py-2 text-sm focus:border-brand-violet focus:outline-none focus:ring-2 focus:ring-brand-violet/30"
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
+                ariaLabel="Password"
               />
             </div>
 
@@ -204,6 +206,10 @@ export default function LoginForm() {
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>
+            <p className="text-center text-xs text-brand-navy-light/60">
+              Forgot your password? Online password reset is not available yet —
+              contact IEC at info@iecincglobal.com for account recovery.
+            </p>
           </form>
         )}
 

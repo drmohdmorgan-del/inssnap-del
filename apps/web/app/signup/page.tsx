@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BrandMark } from "../../components/brand/BrandMark";
 import { TestModeBar } from "../../components/TestModeBar";
+import PasswordInput from "../../components/PasswordInput";
 
 type Role = "resident" | "prospect" | "broker";
 
@@ -224,8 +225,7 @@ function SignupForm() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="8+ characters"
@@ -233,6 +233,8 @@ function SignupForm() {
                   minLength={8}
                   maxLength={128}
                   className={inputCls}
+                  autoComplete="new-password"
+                  ariaLabel="Password"
                 />
               </div>
 
